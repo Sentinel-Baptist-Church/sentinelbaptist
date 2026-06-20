@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sentinel Baptist Church</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+   <style>
+    :root {
+        /* =========================
+           BRAND COLORS (NEW)
+        ========================== */
+
+        --primary-color: #b2730c;      /* Church Gold */
+        --primary-hover: #8f5b09;      /* Dark Gold */
+        --accent-color: #8B0000;       /* Church Red */
+
+        /* =========================
+           NEUTRAL COLORS
+        ========================== */
+
+        --secondary-color: #f8f6f1;    /* Soft background */
+        --dark-color: #111827;         /* Footer / dark sections */
+        --light-color: #ffffff;        /* White */
+
+        /* =========================
+           TEXT COLORS
+        ========================== */
+
+        --text-color: #374151;
+        --text-light: #9ca3af;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        color: var(--text-color);
+        background-color: var(--secondary-color);
+    }
+
+    /* =========================
+       BACKGROUNDS
+    ========================== */
+
+    .bg-primary {
+        background-color: var(--primary-color);
+    }
+
+    .bg-primary-hover:hover {
+        background-color: var(--primary-hover);
+    }
+
+    .bg-accent {
+        background-color: var(--accent-color);
+    }
+
+    .bg-dark {
+        background-color: var(--dark-color);
+    }
+
+    .bg-light {
+        background-color: var(--light-color);
+    }
+
+    /* =========================
+       TEXT COLORS
+    ========================== */
+
+    .text-primary {
+        color: var(--primary-color);
+    }
+
+    .text-accent {
+        color: var(--accent-color);
+    }
+
+    .text-light-custom {
+        color: var(--text-light);
+    }
+
+    /* =========================
+       UTILITIES
+    ========================== */
+
+    .border-primary {
+        border-color: var(--primary-color);
+    }
+
+    .hover-primary:hover {
+        color: var(--primary-color);
+    }
+
+    .hover-accent:hover {
+        color: var(--accent-color);
+    }
+</style>
+
+<style>
+/* =========================
+   BASE BUTTON RESET
+========================= */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+
+    font-weight: 600;
+    font-size: 1rem;
+
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+
+    text-decoration: none;
+}
+
+/* =========================
+   PRIMARY BUTTON (GOLD)
+========================= */
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+/* =========================
+   ACCENT BUTTON (RED)
+========================= */
+
+.btn-accent {
+    background-color: var(--accent-color);
+    color: #ffffff;
+}
+
+.btn-accent:hover {
+    background-color: #6f0000;
+    transform: translateY(-1px);
+}
+
+/* =========================
+   DARK BUTTON
+========================= */
+
+.btn-dark {
+    background-color: var(--dark-color);
+    color: #ffffff;
+}
+
+.btn-dark:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* =========================
+   OUTLINE BUTTON (GOLD BORDER)
+========================= */
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-outline:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+/* =========================
+   SOFT BUTTON (LIGHT)
+========================= */
+
+.btn-soft {
+    background-color: var(--secondary-color);
+    color: var(--dark-color);
+}
+
+.btn-soft:hover {
+    background-color: #eaeaea;
+}
+</style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+    <!-- NAVBAR -->
+<header class="fixed top-0 left-0 w-full bg-white shadow-md z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+
+        <!-- <h1 class="text-2xl font-bold text-primary">
+           Sentinel Baptist Church
+        </h1> -->
+
+        <a href="#home"> <img src="/images/logo.jpeg" alt="Sentinel Baptist Church" class="h-16 w-auto object-contain" > </a>
+        
+
+        <!-- Desktop Menu -->
+        <nav class="hidden md:flex space-x-8 text-gray-700 font-medium">
+            <a href="#home" class="hover:text-primary transition">Home</a>
+            <a href="#about" class="hover:text-primary transition">About</a>
+            <a href="#ministries" class="hover:text-primary transition">Ministries</a>
+            <a href="#sermons" class="hover:text-primary transition">Sermons</a>
+            <a href="#events" class="hover:text-primary transition">Events</a>
+            <a href="#contact" class="hover:text-primary transition">Contact</a>
+        </nav>
+
+        <!-- Mobile Button -->
+        <button id="menu-btn" class="md:hidden text-3xl text-primary">
+            ☰
+        </button>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+        <div class="flex flex-col px-6 py-4 space-y-4 font-medium">
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#ministries">Ministries</a>
+            <a href="#sermons">Sermons</a>
+            <a href="#events">Events</a>
+            <a href="statement-of-faith.html">Statement of Faith</a>
+            <a href="#contact">Contact</a>
+        </div>
+    </div>
+</header>
+
+
+    <!-- Hero Section -->
+    <section id="home"
+        class="h-screen bg-cover bg-center flex items-center justify-center relative"
+        style="background-image: url('images/hero.jpeg');">
+
+        <div class="absolute inset-0 bg-black/60"></div>
+
+        <div class="relative z-10 text-center px-6 text-white max-w-4xl">
+            <h2 class="text-5xl md:text-7xl font-extrabold leading-tight mb-6">
+               Welcome To Sentinel Baptist Church
+            </h2>
+
+            <p class="text-lg md:text-2xl mb-8 text-gray-200">
+              A church devoted to the faithful preaching of Christ,
+        the teaching of Scripture, and the proclamation of the Gospel.
+            </p>
+
+            <a href="#about"
+                class="bg-primary bg-primary-hover transition px-8 py-4 rounded-full text-lg font-semibold inline-block">
+                Learn More
+            </a>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+
+            <div>
+                <img
+                    src="images/about.jpeg"
+                    alt="Church"
+                    class="rounded-3xl shadow-2xl w-full">
+            </div>
+
+            <div>
+                <h2 class="text-4xl md:text-5xl font-bold text-primary mb-8">
+                    About Our Church
+                </h2>
+
+                <p class="text-lg text-gray-600 leading-relaxed mb-6">
+                   We are a Baptist Church founded on the Holy Scripture as expressed in the 1689 Baptist Confession of Faith.
+                </p>
+
+                <p class="text-lg text-gray-600 leading-relaxed mb-8">
+                    Guided by the conviction of
+    1 Corinthians 2:2, we are committed to proclaiming Christ crucified and 
+    equipping believers through sound biblical teaching.
+                </p>
+
+                <a href="https://www.the1689confession.com/"
+    target="_blank"
+    class="bg-primary hover:bg-primary-hover transition text-white px-8 py-4 rounded-xl font-semibold inline-block">
+    Read Our Statement of Faith
+</a>
+
+              
+            </div>
+        </div>
+    </section>
+
+    <!-- Ministries -->
+    <section id="ministries" class="py-24 bg-gray-100">
+        <div class="max-w-7xl mx-auto px-6">
+
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-primary mb-4">
+                    Our Ministries
+                </h2>
+
+                <p class="text-lg text-gray-600">
+                 All the Church's efforts in carrying out the great commission are organised into departments called 
+                 ministries. Each ministry is under the oversight of the Elders of the Church.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-10">
+
+                <!-- Card -->
+                <div class="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition p-8 text-center">
+                    <img
+                        src="images/about.jpeg"
+                        class="mx-auto rounded-full mb-6"
+                        alt="Youth Ministry">
+
+                    <h3 class="text-2xl font-bold mb-4">Youth Ministry</h3>
+
+                    <p class="text-gray-600 leading-relaxed">
+                        Equipping young people with biblical truth, discipleship,
+            and spiritual guidance to stand firm in Christ in today’s world.
+                    </p>
+                </div>
+
+                <!-- Card -->
+                <div class="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition p-8 text-center">
+                    <img
+                        src="images/about.jpeg"
+                        class="mx-auto rounded-full mb-6"
+                        alt="Men's Ministry">
+
+                    <h3 class="text-2xl font-bold mb-4">Men’s Ministry</h3>
+
+                    <p class="text-gray-600 leading-relaxed">
+                        Strengthening men to lead in faith, integrity, and service
+            according to the example of Christ and the teaching of Scripture.
+                    </p>
+                </div>
+
+                <!-- Card -->
+                <div class="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition p-8 text-center">
+                    <img
+                        src="images/about.jpeg"
+                        class="mx-auto rounded-full mb-6"
+                        alt="Women’s Ministry">
+
+                    <h3 class="text-2xl font-bold mb-4">Women’s Ministry</h3>
+
+                    <p class="text-gray-600 leading-relaxed">
+                        Promoting fellowship amongest  women in order to guide them 
+                        in godliness, biblical wisdom, Christian  living, and service in the church.
+                    </p>
+                </div>
+
+                 <!-- Card -->
+                <div class="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition p-8 text-center">
+                    <img
+                        src="images/about.jpeg"
+                        class="mx-auto rounded-full mb-6"
+                        alt="Children’s  Ministry">
+
+                    <h3 class="text-2xl font-bold mb-4">Children’s  Ministry</h3>
+
+                    <p class="text-gray-600 leading-relaxed">
+                        Teaching children the Word of God in a safe, loving environment,
+            laying a strong foundation of faith in Christ from an early age.
+                    </p>
+                </div>
+
+     <!-- Card -->
+                <div class="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition p-8 text-center">
+                    <img
+                        src="images/about.jpeg"
+                        class="mx-auto rounded-full mb-6"
+                        alt="Couple’s  Ministry">
+
+                    <h3 class="text-2xl font-bold mb-4">Couple’s  Ministry</h3>
+
+                    <p class="text-gray-600 leading-relaxed">
+                       Marriage focused ministry to edify families in the Church.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Service Times -->
+    <section class="py-24 bg-primary text-white">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+
+            <h2 class="text-4xl md:text-5xl font-bold mb-16">
+                Service Times
+            </h2>
+
+            <div class="grid md:grid-cols-3 gap-10">
+
+                <div class="bg-white text-gray-800 rounded-3xl p-10 shadow-xl">
+                    <h3 class="text-2xl font-bold mb-4">Sunday Worship</h3>
+                    <p class="text-lg">09:00 AM - 12:00 PM , 17:00 PM - 18:00 PM</p>
+                </div>
+
+                <div class="bg-white text-gray-800 rounded-3xl p-10 shadow-xl">
+                    <h3 class="text-2xl font-bold mb-4"> Wednesday Bible Study</h3>
+                    <p class="text-lg">06:00 PM - 07:00 PM
+                    </p>
+                </div>
+
+                <div class="bg-white text-gray-800 rounded-3xl p-10 shadow-xl">
+                    <h3 class="text-2xl font-bold mb-4"> Online Prayer Meeting</h3>
+                    <p class="text-lg">06:00 AM - 07:00 AM </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sermons -->
+    <section id="sermons" class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-6">
+
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-primary mb-4">
+                    Latest Sermons
+                </h2>
+
+                <p class="text-lg text-gray-600">
+                    Watch inspiring messages and teachings.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-10">
+
+                <!-- Sermon Card -->
+<div class="bg-gray-100 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+    <img src="images/sermon.jpg" class="w-full" alt="Sermon">
+
+    <div class="p-8">
+        <h3 class="text-2xl font-bold mb-4">
+1 Corinthians 1:1-17 Bible Study</h3>
+
+        <p class="text-gray-600 mb-6">
+            Learn how faith can help you overcome every challenge in life.
+        </p>
+
+        <a href="https://www.youtube.com/watch?v=6zaGI_6n_Pg"
+           target="_blank"
+           class="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl transition inline-block">
+            Watch Sermon
+        </a>
+    </div>
+</div>
+
+               <!-- Sermon Card -->
+<div class="bg-gray-100 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+    <img src="images/sermon.jpg" class="w-full" alt="Sermon">
+
+    <div class="p-8">
+        <h3 class="text-2xl font-bold mb-4">
+1 Corinthians 1:1-17 Bible Study</h3>
+
+        <p class="text-gray-600 mb-6">
+            Learn how faith can help you overcome every challenge in life.
+        </p>
+
+        <a href="https://www.youtube.com/watch?v=6zaGI_6n_Pg"
+           target="_blank"
+           class="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl transition inline-block">
+            Watch Sermon
+        </a>
+    </div>
+</div>
+
+               <!-- Sermon Card -->
+<div class="bg-gray-100 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+    <img src="images/sermon.jpg" class="w-full" alt="Sermon">
+
+    <div class="p-8">
+        <h3 class="text-2xl font-bold mb-4">
+1 Corinthians 1:1-17 Bible Study</h3>
+
+        <p class="text-gray-600 mb-6">
+            Learn how faith can help you overcome every challenge in life.
+        </p>
+
+        <a href="https://www.youtube.com/watch?v=6zaGI_6n_Pg"
+           target="_blank"
+           class="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl transition inline-block">
+            Watch Sermon
+        </a>
+    </div>
+</div>
+
+
+
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Events -->
+    <section id="events" class="py-24 bg-gray-100">
+        <div class="max-w-7xl mx-auto px-6">
+
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-primary mb-4">
+                    Upcoming Events
+                </h2>
+
+                <p class="text-lg text-gray-600">
+                    Stay connected with church activities and conferences.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-10">
+
+                <!-- Event Card -->
+                <div class="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+                    <img
+                        src="images/picture.webp"
+                        class="w-full"
+                        alt="Event">
+
+                    <div class="p-8">
+                        <h3 class="text-3xl font-bold mb-4">
+                            Reformed Baptist Heritage Youth Conference 2026
+                        </h3>
+
+                        <p class="text-gray-600 mb-4 leading-relaxed">
+                            Join us for worship, teachings, networking, and spiritual growth.
+                        </p>
+
+                        <span class="inline-block bg-blue-100 text-primary px-4 py-2 rounded-full font-semibold">
+                            03-06 July 2026 | Zambia Baptist Association Headquarters, Ndola.
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Event Card -->
+                <div class="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+                    <img
+                        src="images/jide.jpeg"
+                        class="w-full"
+                        alt="Event">s
+
+                    <div class="p-8">
+                        <h3 class="text-3xl font-bold mb-4">
+                           Sentinel Evangelistic Youth Conference 2026
+                        </h3>
+
+                        <p class="text-gray-600 mb-4 leading-relaxed">
+                           Jide and Victoria Owolabi of the Metropolitan Tabernacle (Met Tab) London will be visiting Zambia with Daniel, their son, this year. 
+
+Mr. Jide Owolabi is a member of the pastoral staff at the Met Tab. He serves as a Pastoral assistant to Dr. Peter Masters, the pastor of the Met Tab. He will be the main speaker at the Sentinel Evangelistic Youth Conference in December 2026
+                          
+                        </p>
+
+                        <span class="inline-block bg-blue-100 text-primary px-4 py-2 rounded-full font-semibold">
+                            05 December  2026 | Sentinel Baptist Church, Kalumbila.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pastor Section -->
+    <section class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+
+            <div>
+                <img
+                    src="images/Ben.jpeg"
+                    alt="Pastor"
+                    class="rounded-3xl shadow-2xl w-full">
+            </div>
+
+            <div>
+                <h2 class="text-4xl md:text-5xl font-bold text-primary mb-8">
+                    Pastor - Ben M. Sangende
+                </h2>
+
+               <p class="text-lg text-gray-600 leading-relaxed mb-6">
+    Pastor Ben M. Sangende has faithfully served as pastor of Sentinel Baptist Church since 2018.
+    He is a husband of one wife and father of three girls.
+</p>
+
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Mission Section -->
+<section class="py-24 bg-primary text-white text-center">
+    <div class="max-w-5xl mx-auto px-6">
+
+        <h2 class="text-4xl md:text-5xl font-bold mb-6">
+            Our Mission
+        </h2>
+
+        <p class="text-2xl italic text-gray-200 mb-6 leading-relaxed">
+            “For I determined not to know anything among you,
+            except Jesus Christ, and Him crucified.”
+        </p>
+
+        <p class="text-lg text-gray-300 mb-10 italic">
+            1 Corinthians 2:2
+        </p>
+
+        <p class="text-xl text-gray-200 leading-relaxed max-w-4xl mx-auto mb-10">
+            Sentinel Baptist Church exists to proclaim Jesus Christ faithfully
+            through biblical preaching and teaching.
+            Our desire is to see lives transformed by the truth of God’s Word
+            and believers strengthened in sound doctrine and faithful Christian living.
+        </p>
+
+        <a href="statement-of-faith.html"
+            target="_blank"
+            class="bg-white text-primary hover:bg-gray-200 transition px-10 py-4 rounded-full text-lg font-bold inline-block">
+            Read Our Statement of Faith
+        </a>
+
+    </div>
+</section>
+
+    <!-- Contact -->
+    <section id="contact" class="py-24 bg-gray-100">
+        <div class="max-w-4xl mx-auto px-6">
+
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-primary mb-4">
+                    Contact Us
+                </h2>
+
+                <p class="text-lg text-gray-600">
+                    We'd love to hear from you.
+                </p>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-xl p-10 md:p-14">
+
+                <form class="space-y-6">
+
+                    <div class="grid md:grid-cols-2 gap-6">
+
+                        <div>
+                            <label class="block mb-2 font-semibold">First Name</label>
+
+                            <input
+                                type="text"
+                                class="w-full border border-gray-300 rounded-xl px-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-700">
+                        </div>
+
+                        <div>
+                            <label class="block mb-2 font-semibold">Last Name</label>
+
+                            <input
+                                type="text"
+                                class="w-full border border-gray-300 rounded-xl px-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-700">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block mb-2 font-semibold">Email</label>
+
+                        <input
+                            type="email"
+                            class="w-full border border-gray-300 rounded-xl px-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-700">
+                    </div>
+
+                    <div>
+                        <label class="block mb-2 font-semibold">Message</label>
+
+                        <textarea
+                            rows="6"
+                            class="w-full border border-gray-300 rounded-xl px-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-700"></textarea>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="bg-primary bg-primary-hover transition text-white px-8 py-4 rounded-xl font-semibold w-full md:w-auto">
+                        Send Message
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-16">
+       <!-- Footer -->
+
+<footer class="bg-dark text-white">
+    <div class="max-w-7xl mx-auto px-6 py-16">
+
+
+    <div class="grid lg:grid-cols-3 gap-12">
+
+        <!-- Church Info -->
+        <div>
+            <h3 class="text-3xl font-bold mb-4">
+                Sentinel Baptist Church
+            </h3>
+
+            <p class="text-light-custom leading-relaxed">
+                Building faith, hope, and community through Christ-centered
+                ministry.
+            </p>
+
+            <div class="mt-6 space-y-2 text-light-custom">
+                <p>sentinelbaptistchurch@gmail.com</p>
+                <p>+260 969 842 890</p>
+            </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div>
+            <h3 class="text-2xl font-bold mb-4">
+                Quick Links
+            </h3>
+
+            <ul class="space-y-3 text-light-custom">
+                <li><a href="#home" class="hover:text-white">Home</a></li>
+                <li><a href="#about" class="hover:text-white">About</a></li>
+                <li><a href="#ministries" class="hover:text-white">Ministries</a></li>
+                <li><a href="#contact" class="hover:text-white">Contact</a></li>
+            </ul>
+        </div>
+
+        <!-- Map -->
+        <div>
+            <h3 class="text-2xl font-bold mb-4">
+                Find Us
+            </h3>
+
+            <div class="overflow-hidden rounded-2xl shadow-lg border border-white/10">
+               <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1949.694754468773!2d25.411797717304974!3d-12.221884667470592!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x197ab333a69e71c3%3A0x782d59e2360a8a3d!2sSentinel%20Baptist%20Church!5e0!3m2!1sen!2szm!4v1781940231338!5m2!1sen!2szm" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+
+            <a href="https://maps.app.goo.gl/sVpPGBTo4f2Ah59p9"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="inline-block mt-4 px-5 py-3 rounded-lg bg-primary-custom text-white font-medium hover:opacity-90 transition">
+                Open in Google Maps
+            </a>
+        </div>
+
+    </div>
+
+    <div class="border-t border-gray-800 mt-12 pt-8 text-center text-gray-500">
+        <p>
+            © 2026 Sentinel Baptist Church. All Rights Reserved.
+        </p>
+    </div>
+
+</div>
+```
+
+</footer>
+
+    </footer>
+
+    <!-- Mobile Menu Script -->
+    <script>
+        const menuBtn = document.getElementById('menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        menuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
+
+</body>
+</html>
+
