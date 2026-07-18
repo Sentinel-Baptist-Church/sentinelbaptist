@@ -59,9 +59,15 @@ async function register(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const values = Object.fromEntries(new FormData(form));
+  const { password, consent, ...metadata } = values;
+  const ministryInterests = Array.from(form.querySelectorAll('input[name="ministry_interests"]:checked')).map((input) => input.value);
   const { error } = await supabase.auth.signUp({
-    email: values.email, password: values.password,
-    options: { data: { full_name: values.full_name, phone: values.phone } }
+    email: values.email, password,
+    options: { data: {
+      ...metadata, ministry_interests: ministryInterests,
+      baptized: values.baptized === 'true', previous_membership: values.previous_membership === 'true',
+      transfer_requested: values.transfer_requested === 'true'
+    } }
   });
   if (error) return message(error.message, 'error');
   form.reset(); message('Application received. Check your email to confirm it; church staff will then review it.');
@@ -116,7 +122,12 @@ async function renderPortal() {
   if (!user) {
     portalShell('Member portal', `<p class="text-slate-600 mb-6">Register to apply for membership, or sign in to check your application.</p>
       <div class="grid md:grid-cols-2 gap-8"><form id="login-form" class="card"><h2>Sign in</h2><input name="email" type="email" placeholder="Email" required><input name="password" type="password" placeholder="Password" required><button>Sign in</button></form>
-      <form id="register-form" class="card"><h2>Apply for membership</h2><input name="full_name" placeholder="Full name" required><input name="phone" placeholder="Phone number"><input name="email" type="email" placeholder="Email" required><input name="password" type="password" minlength="8" placeholder="Password (8+ characters)" required><button>Submit application</button></form></div>`);
+      <form id="register-form" class="card"><h2>Apply for membership</h2><p class="text-sm text-slate-600">Your information is reviewed only by authorized church staff.</p>
+      <h3>Personal details</h3><input name="full_name" placeholder="Full name" required><input name="date_of_birth" type="date" required><select name="gender" required><option value="">Gender</option><option>Female</option><option>Male</option><option>Prefer not to say</option></select><input name="phone" placeholder="Phone number" required><input name="email" type="email" placeholder="Email" required><textarea name="address" placeholder="Home address" required></textarea>
+      <h3>Family and work</h3><select name="marital_status" required><option value="">Marital status</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select><input name="spouse_name" placeholder="Spouse name (if applicable)"><input name="children_count" type="number" min="0" placeholder="Number of children"><input name="occupation" placeholder="Occupation / work">
+      <h3>Church background</h3><label>Have you been baptized by immersion after professing faith?</label><select name="baptized" required><option value="">Select one</option><option value="true">Yes</option><option value="false">No</option></select><input name="baptism_date" type="date" placeholder="Baptism date"><input name="baptism_church" placeholder="Church where baptized"><label>Have you previously been a church member?</label><select name="previous_membership" required><option value="">Select one</option><option value="true">Yes</option><option value="false">No</option></select><input name="previous_church" placeholder="Previous church (if applicable)"><textarea name="previous_membership_reason" placeholder="Why did you leave or seek transfer from the previous church?"></textarea><label class="check"><input name="transfer_requested" type="checkbox" value="true"> I am requesting a membership transfer</label>
+      <h3>Your testimony</h3><p class="text-sm text-slate-600">These questions support a pastoral conversation; only God knows the heart.</p><textarea name="salvation_story" placeholder="Please share how you came to trust in Jesus Christ." required></textarea><textarea name="gospel_understanding" placeholder="In your own words, what is the gospel?" required></textarea><textarea name="repentance_and_faith" placeholder="What do repentance and faith in Christ mean to you?" required></textarea><textarea name="assurance_of_salvation" placeholder="On what basis do you have assurance of salvation?" required></textarea>
+      <h3>Ministry and emergency contact</h3><fieldset><legend>Ministry interests</legend><label class="check"><input name="ministry_interests" type="checkbox" value="Children"> Children</label><label class="check"><input name="ministry_interests" type="checkbox" value="Youth"> Youth</label><label class="check"><input name="ministry_interests" type="checkbox" value="Music"> Music</label><label class="check"><input name="ministry_interests" type="checkbox" value="Evangelism"> Evangelism</label><label class="check"><input name="ministry_interests" type="checkbox" value="Hospitality"> Hospitality</label></fieldset><input name="emergency_contact_name" placeholder="Emergency contact name" required><input name="emergency_contact_phone" placeholder="Emergency contact phone" required><input name="password" type="password" minlength="8" placeholder="Password (8+ characters)" required><label class="check"><input name="consent" type="checkbox" required> I consent to Sentinel Baptist Church securely using this information for membership and pastoral care.</label><button>Submit application</button></form></div>`);
     byId('login-form').addEventListener('submit', login); byId('register-form').addEventListener('submit', register); return;
   }
   const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
