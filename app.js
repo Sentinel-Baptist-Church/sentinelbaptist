@@ -226,6 +226,39 @@ function openMemberDetails(member) {
   document.body.append(backdrop); close.focus();
 }
 
+function openMemberEditor(member) {
+  const backdrop = document.createElement('div'); backdrop.className = 'detail-backdrop';
+  const panel = document.createElement('section'); panel.className = 'detail-panel';
+  panel.innerHTML = '<div class="detail-head"><div><p class="eyebrow">Staff-only record</p><h2 class="text-2xl font-bold">Edit member</h2></div><button class="secondary" type="button">Close</button></div><form id="member-edit-form" class="form-grid mt-5"></form>';
+  const form = panel.querySelector('form');
+  const fields = [['full_name', 'Full name', 'text'], ['email', 'Email address', 'email'], ['phone', 'Phone number', 'text'], ['address', 'Home address', 'textarea'], ['occupation', 'Occupation', 'text'], ['pastoral_notes', 'Private pastoral notes', 'textarea']];
+  for (const [key, label, type] of fields) {
+    const wrapper = document.createElement('label'); wrapper.className = 'field-label'; wrapper.textContent = label;
+    const control = document.createElement(type === 'textarea' ? 'textarea' : 'input'); control.name = key; control.value = member[key] || ''; control.type = type === 'textarea' ? undefined : type;
+    wrapper.append(control); form.append(wrapper);
+  }
+  const statusLabel = document.createElement('label'); statusLabel.className = 'field-label'; statusLabel.textContent = 'Membership status';
+  const status = document.createElement('select'); status.name = 'membership_status'; ['pending', 'approved', 'declined'].forEach((value) => { const option = new Option(value[0].toUpperCase() + value.slice(1), value, false, member.membership_status === value); status.append(option); });
+  statusLabel.append(status); form.append(statusLabel);
+  const feedback = document.createElement('p'); feedback.className = 'form-feedback'; feedback.dataset.formFeedback = ''; form.append(feedback);
+  const save = document.createElement('button'); save.textContent = 'Save changes'; save.type = 'submit'; form.append(save);
+  const close = () => backdrop.remove(); panel.querySelector('button').onclick = close;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); setFormLoading(form, true, 'Saving changes…');
+    const values = Object.fromEntries(new FormData(form));
+    const table = member.source === 'Staff entry' ? 'manual_members' : 'profiles';
+    const payload = { ...values };
+    if (table === 'profiles' && values.membership_status !== member.membership_status) {
+      const { data: { user } } = await supabase.auth.getUser(); payload.reviewed_at = new Date().toISOString(); payload.reviewed_by = user.id;
+    }
+    const { error } = await supabase.from(table).update(payload).eq('id', member.id);
+    setFormLoading(form, false);
+    if (error) return formFeedback(form, error.message, 'error');
+    close(); message('Member record updated.'); await renderPortal();
+  });
+  backdrop.append(panel); backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); }); document.body.append(backdrop);
+}
+
 async function renderEnhancedMemberRegister() {
   const oldList = byId('member-list');
   if (!oldList) return;
@@ -265,6 +298,7 @@ async function renderEnhancedMemberRegister() {
       details.append(title, badges, contact);
       const actions = document.createElement('div'); actions.className = 'member-actions';
       const view = document.createElement('button'); view.className = 'outline'; view.textContent = 'View details'; view.onclick = () => openMemberDetails(member); actions.append(view);
+      const edit = document.createElement('button'); edit.className = 'secondary'; edit.textContent = 'Edit'; edit.onclick = () => openMemberEditor(member); actions.append(edit);
       if (member.source === 'Online application' && member.membership_status === 'pending') {
         const approve = document.createElement('button'); approve.textContent = 'Approve'; approve.onclick = () => approveMember(member.id, 'approved');
         const decline = document.createElement('button'); decline.textContent = 'Decline'; decline.className = 'secondary'; decline.onclick = () => approveMember(member.id, 'declined');
