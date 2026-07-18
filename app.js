@@ -136,6 +136,105 @@ function portalShell(title, body) {
   target.innerHTML = `<h1 class="text-3xl font-bold text-slate-900 mb-2">${title}</h1>${body}`;
 }
 
+const displayValue = (value) => {
+  if (value === null || value === undefined || value === '') return 'Not recorded';
+  if (value === true) return 'Yes';
+  if (value === false) return 'No';
+  if (Array.isArray(value)) return value.length ? value.join(', ') : 'Not recorded';
+  return String(value);
+};
+
+function openMemberDetails(member) {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'detail-backdrop';
+  backdrop.setAttribute('role', 'dialog');
+  backdrop.setAttribute('aria-modal', 'true');
+  const panel = document.createElement('section');
+  panel.className = 'detail-panel';
+  const header = document.createElement('div'); header.className = 'detail-head';
+  const heading = document.createElement('div');
+  const name = document.createElement('h2'); name.className = 'text-2xl font-bold'; name.textContent = member.full_name || 'Unnamed member';
+  const labels = document.createElement('p'); labels.className = 'mt-2 flex gap-2 flex-wrap';
+  labels.innerHTML = `<span class="status-pill ${member.membership_status}">${member.membership_status}</span><span class="source-pill">${member.source}</span>`;
+  heading.append(name, labels);
+  const close = document.createElement('button'); close.className = 'secondary'; close.textContent = 'Close'; close.onclick = () => backdrop.remove();
+  header.append(heading, close); panel.append(header);
+  const sections = [
+    ['Contact and family', [['Email', 'email'], ['Phone', 'phone'], ['Date of birth', 'date_of_birth'], ['Gender', 'gender'], ['Marital status', 'marital_status'], ['Spouse', 'spouse_name'], ['Children', 'children_count'], ['Occupation', 'occupation'], ['Home address', 'address']]],
+    ['Church background', [['Baptized after profession of faith', 'baptized'], ['Baptism date', 'baptism_date'], ['Baptism church', 'baptism_church'], ['Previous membership', 'previous_membership'], ['Previous church', 'previous_church'], ['Transfer requested', 'transfer_requested'], ['Reason for leaving / transfer', 'previous_membership_reason'], ['Ministry interests', 'ministry_interests']]],
+    ['Pastoral information', [['Salvation story / testimony', 'salvation_story'], ['Gospel understanding', 'gospel_understanding'], ['Repentance and faith', 'repentance_and_faith'], ['Assurance of salvation', 'assurance_of_salvation'], ['Pastoral notes', 'pastoral_notes']]],
+    ['Emergency contact', [['Name', 'emergency_contact_name'], ['Phone', 'emergency_contact_phone']]]
+  ];
+  for (const [sectionTitle, fields] of sections) {
+    const section = document.createElement('section'); section.className = 'detail-section';
+    const title = document.createElement('h3'); title.className = 'font-bold text-lg'; title.textContent = sectionTitle;
+    const grid = document.createElement('dl'); grid.className = 'detail-grid';
+    for (const [label, key] of fields) {
+      if (member[key] === null || member[key] === undefined || member[key] === '') continue;
+      const item = document.createElement('div'); item.className = 'detail-item';
+      const term = document.createElement('dt'); term.textContent = label;
+      const definition = document.createElement('dd'); definition.textContent = displayValue(member[key]);
+      item.append(term, definition); grid.append(item);
+    }
+    if (grid.childElementCount) { section.append(title, grid); panel.append(section); }
+  }
+  backdrop.append(panel);
+  backdrop.addEventListener('click', (event) => { if (event.target === backdrop) backdrop.remove(); });
+  document.body.append(backdrop); close.focus();
+}
+
+async function renderEnhancedMemberRegister() {
+  const oldList = byId('member-list');
+  if (!oldList) return;
+  const register = oldList.parentElement;
+  register.innerHTML = '<h3>Membership register</h3><p class="text-sm text-slate-600">Search the register, choose a status, then open a member record to view their submitted details.</p><div class="member-summary" id="member-summary"></div><div class="member-toolbar"><label>Search members<input id="member-search" type="search" placeholder="Name, email, or phone"></label><label>Membership status<select id="member-filter"><option value="all">All records</option><option value="pending">Pending review</option><option value="approved">Approved members</option><option value="declined">Declined</option></select></label></div><div id="member-list" class="member-list"></div>';
+  const [{ data: applications, error: applicationsError }, { data: manualMembers, error: manualError }] = await Promise.all([
+    supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+    supabase.from('manual_members').select('*').order('created_at', { ascending: false })
+  ]);
+  if (applicationsError || manualError) {
+    byId('member-list').textContent = 'The register could not be loaded. Please refresh and try again.';
+    return;
+  }
+  const records = [
+    ...(applications || []).map((member) => ({ ...member, source: 'Online application' })),
+    ...(manualMembers || []).map((member) => ({ ...member, source: 'Staff entry' }))
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const counts = ['pending', 'approved', 'declined'].map((status) => `${records.filter((record) => record.membership_status === status).length} ${status}`);
+  byId('member-summary').innerHTML = `<span class="summary-pill">${records.length} total records</span>${counts.map((count) => `<span class="summary-pill">${count}</span>`).join('')}`;
+  const render = () => {
+    const filter = byId('member-filter').value;
+    const query = byId('member-search').value.trim().toLowerCase();
+    const visible = records.filter((member) => {
+      const matchesStatus = filter === 'all' || member.membership_status === filter;
+      const searchable = [member.full_name, member.email, member.phone].filter(Boolean).join(' ').toLowerCase();
+      return matchesStatus && (!query || searchable.includes(query));
+    });
+    const list = byId('member-list'); list.replaceChildren();
+    if (!visible.length) { list.innerHTML = '<p class="empty-state">No members match those filters.</p>'; return; }
+    for (const member of visible) {
+      const card = document.createElement('article'); card.className = 'member-card';
+      const details = document.createElement('div');
+      const title = document.createElement('h4'); title.textContent = member.full_name || 'Unnamed member';
+      const badges = document.createElement('p'); badges.className = 'mt-2 flex gap-2 flex-wrap';
+      badges.innerHTML = `<span class="status-pill ${member.membership_status}">${member.membership_status}</span><span class="source-pill">${member.source}</span>`;
+      const contact = document.createElement('p'); contact.className = 'member-meta'; contact.textContent = [member.email, member.phone].filter(Boolean).join(' · ') || 'No contact details recorded';
+      details.append(title, badges, contact);
+      const actions = document.createElement('div'); actions.className = 'member-actions';
+      const view = document.createElement('button'); view.className = 'outline'; view.textContent = 'View details'; view.onclick = () => openMemberDetails(member); actions.append(view);
+      if (member.source === 'Online application' && member.membership_status === 'pending') {
+        const approve = document.createElement('button'); approve.textContent = 'Approve'; approve.onclick = () => approveMember(member.id, 'approved');
+        const decline = document.createElement('button'); decline.textContent = 'Decline'; decline.className = 'secondary'; decline.onclick = () => approveMember(member.id, 'declined');
+        actions.append(approve, decline);
+      }
+      card.append(details, actions); list.append(card);
+    }
+  };
+  byId('member-filter').addEventListener('change', render);
+  byId('member-search').addEventListener('input', render);
+  render();
+}
+
 async function renderPortal() {
   if (!byId('portal-content')) return;
   const { data: { user } } = await supabase.auth.getUser();
@@ -184,6 +283,7 @@ async function renderPortal() {
     }
   };
   byId('member-filter').addEventListener('change', renderMemberList); renderMemberList();
+  await renderEnhancedMemberRegister();
 }
 
 document.querySelector('[data-contact-form]')?.addEventListener('submit', submitContact);
