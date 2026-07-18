@@ -67,7 +67,7 @@ async function register(event) {
       ...metadata, ministry_interests: ministryInterests,
       baptized: values.baptized === 'true', previous_membership: values.previous_membership === 'true',
       transfer_requested: values.transfer_requested === 'true'
-    } }
+    }, emailRedirectTo: new URL('portal.html', window.location.href).toString() }
   });
   if (error) return message(error.message, 'error');
   form.reset(); message('Application received. Check your email to confirm it; church staff will then review it.');
