@@ -13,6 +13,40 @@ const message = (text, type = 'success') => {
   target.className = type === 'error' ? 'text-red-700 mt-4' : 'text-green-700 mt-4';
 };
 
+const friendlyAuthMessage = (error) => {
+  const text = error?.message || 'Something went wrong. Please try again.';
+  if (/invalid login credentials/i.test(text)) return 'We could not match that email and password. Please check them and try again.';
+  if (/email not confirmed/i.test(text)) return 'Please confirm your email first, then return here to sign in.';
+  if (/already registered/i.test(text)) return 'An account already exists for that email. Please sign in instead.';
+  if (/password should be at least/i.test(text)) return 'Please choose a password with at least 8 characters.';
+  return text;
+};
+
+const formFeedback = (form, text, type = 'success') => {
+  let target = form.querySelector('[data-form-feedback]');
+  if (!target) {
+    target = document.createElement('p');
+    target.dataset.formFeedback = '';
+    target.setAttribute('aria-live', 'polite');
+    form.append(target);
+  }
+  target.textContent = text;
+  target.className = `form-feedback ${type}`;
+};
+
+const setFormLoading = (form, loading, label) => {
+  const button = form.querySelector('button[type="submit"], button:not([type])');
+  if (!button) return;
+  if (loading) {
+    button.dataset.originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = label;
+  } else {
+    button.disabled = false;
+    button.textContent = button.dataset.originalLabel || button.textContent;
+  }
+};
+
 const formatDate = (value) => new Intl.DateTimeFormat('en-ZM', {
   dateStyle: 'medium', timeStyle: 'short'
 }).format(new Date(value));
@@ -58,6 +92,8 @@ async function submitContact(event) {
 async function register(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  formFeedback(form, '');
+  setFormLoading(form, true, 'Submitting application…');
   const values = Object.fromEntries(
     Array.from(new FormData(form), ([key, value]) => [key, value === '' ? null : value])
   );
@@ -71,15 +107,22 @@ async function register(event) {
       transfer_requested: values.transfer_requested === 'true'
     }, emailRedirectTo: new URL('portal.html', window.location.href).toString() }
   });
-  if (error) return message(error.message, 'error');
-  form.reset(); message('Application received. Check your email to confirm it; church staff will then review it.');
+  setFormLoading(form, false);
+  if (error) return formFeedback(form, friendlyAuthMessage(error), 'error');
+  form.reset();
+  formFeedback(form, 'Application received. Please check your email to confirm it; church staff will then review it.', 'success');
 }
 
 async function login(event) {
   event.preventDefault();
-  const values = Object.fromEntries(new FormData(event.currentTarget));
+  const form = event.currentTarget;
+  formFeedback(form, '');
+  setFormLoading(form, true, 'Signing you in…');
+  const values = Object.fromEntries(new FormData(form));
   const { error } = await supabase.auth.signInWithPassword({ email: values.email, password: values.password });
-  if (error) return message(error.message, 'error');
+  setFormLoading(form, false);
+  if (error) return formFeedback(form, friendlyAuthMessage(error), 'error');
+  byId('login-modal')?.remove();
   await renderPortal();
 }
 
@@ -292,10 +335,11 @@ function renderPublicPortal() {
   modal.id = 'login-modal';
   modal.innerHTML = '<section class="login-modal-card" role="dialog" aria-modal="true" aria-labelledby="login-modal-title"><button type="button" class="modal-close" id="close-login" aria-label="Close sign in">×</button><p class="eyebrow">Welcome back</p><h2 id="login-modal-title">Sign in</h2><p>Use your email and password to access your member portal.</p><form id="modal-login-form"><label class="field-label">Email address<input name="email" type="email" autocomplete="email" placeholder="you@example.com" required></label><label class="field-label">Password<input name="password" type="password" autocomplete="current-password" placeholder="Your password" required></label><button class="auth-submit">Sign in securely</button></form></section>';
   document.body.append(modal);
-  const closeModal = () => modal.classList.remove('open');
+  const closeModal = () => { modal.classList.remove('open'); byId('modal-login-form')?.reset(); formFeedback(byId('modal-login-form'), ''); };
   byId('open-login').addEventListener('click', () => { modal.classList.add('open'); modal.querySelector('input')?.focus(); });
   byId('close-login').addEventListener('click', closeModal);
   modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+  modal.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeModal(); });
   byId('modal-login-form').addEventListener('submit', login);
 }
 
