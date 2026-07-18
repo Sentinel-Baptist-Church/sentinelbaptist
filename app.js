@@ -58,7 +58,9 @@ async function submitContact(event) {
 async function register(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  const values = Object.fromEntries(new FormData(form));
+  const values = Object.fromEntries(
+    Array.from(new FormData(form), ([key, value]) => [key, value === '' ? null : value])
+  );
   const { password, consent, ...metadata } = values;
   const ministryInterests = Array.from(form.querySelectorAll('input[name="ministry_interests"]:checked')).map((input) => input.value);
   const { error } = await supabase.auth.signUp({
@@ -111,6 +113,24 @@ async function createEvent(event) {
   form.reset(); message('Event saved.'); await renderPortal();
 }
 
+async function addManualMember(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = Object.fromEntries(
+    Array.from(new FormData(form), ([key, value]) => [key, value === '' ? null : value])
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  const ministry_interests = Array.from(form.querySelectorAll('input[name="ministry_interests"]:checked')).map((input) => input.value);
+  const { error } = await supabase.from('manual_members').insert({
+    ...values, ministry_interests, created_by: user.id,
+    baptized: values.baptized === 'true' ? true : values.baptized === 'false' ? false : null,
+    previous_membership: values.previous_membership === 'true' ? true : values.previous_membership === 'false' ? false : null,
+    children_count: values.children_count ? Number(values.children_count) : null
+  });
+  if (error) return message(error.message, 'error');
+  form.reset(); message('Member added and approved.'); await renderPortal();
+}
+
 function portalShell(title, body) {
   const target = byId('portal-content');
   target.innerHTML = `<h1 class="text-3xl font-bold text-slate-900 mb-2">${title}</h1>${body}`;
@@ -137,18 +157,33 @@ async function renderPortal() {
   byId('sign-out').addEventListener('click', async () => { await supabase.auth.signOut(); await renderPortal(); });
   if (!staff) return;
   const area = byId('staff-area');
-  area.innerHTML = `<h2 class="text-2xl font-bold mt-8">Staff dashboard</h2><div class="grid lg:grid-cols-2 gap-8 mt-5"><section class="card"><h3>Publish an event</h3><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><input name="starts_at" type="datetime-local" required><input name="image" type="file" accept="image/jpeg,image/png,image/webp"><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><button>Save event</button></form></section><section class="card"><h3>Pending membership applications</h3><div id="applications">Loading…</div></section></div>`;
+  area.innerHTML = `<h2 class="text-2xl font-bold mt-8">Staff dashboard</h2><div class="grid lg:grid-cols-2 gap-8 mt-5"><section class="card"><h3>Add a member manually</h3><p class="text-sm text-slate-600">Manual entries are approved immediately and do not need an online account.</p><form id="manual-member-form"><input name="full_name" placeholder="Full name" required><input name="email" type="email" placeholder="Email (optional)"><input name="phone" placeholder="Phone number"><input name="date_of_birth" type="date"><select name="gender"><option value="">Gender</option><option>Female</option><option>Male</option></select><select name="marital_status"><option value="">Marital status</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select><input name="spouse_name" placeholder="Spouse name"><input name="children_count" type="number" min="0" placeholder="Number of children"><input name="occupation" placeholder="Occupation"><textarea name="address" placeholder="Home address"></textarea><select name="baptized"><option value="">Baptized?</option><option value="true">Yes</option><option value="false">No</option></select><input name="baptism_church" placeholder="Church where baptized"><select name="previous_membership"><option value="">Previous church membership?</option><option value="true">Yes</option><option value="false">No</option></select><input name="previous_church" placeholder="Previous church"><textarea name="salvation_story" placeholder="Salvation story / testimony"></textarea><textarea name="pastoral_notes" placeholder="Private pastoral notes"></textarea><fieldset><legend>Ministry interests</legend><label class="check"><input name="ministry_interests" type="checkbox" value="Children"> Children</label><label class="check"><input name="ministry_interests" type="checkbox" value="Youth"> Youth</label><label class="check"><input name="ministry_interests" type="checkbox" value="Music"> Music</label><label class="check"><input name="ministry_interests" type="checkbox" value="Evangelism"> Evangelism</label></fieldset><input name="emergency_contact_name" placeholder="Emergency contact name"><input name="emergency_contact_phone" placeholder="Emergency contact phone"><button>Add approved member</button></form></section><section class="card"><h3>Publish an event</h3><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><input name="starts_at" type="datetime-local" required><input name="image" type="file" accept="image/jpeg,image/png,image/webp"><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><button>Save event</button></form></section></div><section class="card mt-8"><h3>Membership register</h3><label>Filter members<select id="member-filter"><option value="all">All members and applications</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="declined">Declined</option></select></label><div id="member-list">Loading…</div></section>`;
   byId('event-form').addEventListener('submit', createEvent);
-  const { data: pending } = await supabase.from('profiles').select('id,full_name,email,phone,created_at').eq('membership_status', 'pending').order('created_at');
-  const list = byId('applications'); list.replaceChildren();
-  if (!pending?.length) list.textContent = 'No pending applications.';
-  for (const application of pending || []) {
+  byId('manual-member-form').addEventListener('submit', addManualMember);
+  const [{ data: applications }, { data: manualMembers }] = await Promise.all([
+    supabase.from('profiles').select('id,full_name,email,phone,membership_status,created_at').order('created_at', { ascending: false }),
+    supabase.from('manual_members').select('id,full_name,email,phone,membership_status,created_at').order('created_at', { ascending: false })
+  ]);
+  const records = [...(applications || []).map((member) => ({ ...member, source: 'Online application' })), ...(manualMembers || []).map((member) => ({ ...member, source: 'Staff entry' }))];
+  const list = byId('member-list');
+  const renderMemberList = () => {
+    const filter = byId('member-filter').value;
+    list.replaceChildren();
+    const visible = records.filter((record) => filter === 'all' || record.membership_status === filter);
+    if (!visible.length) { list.textContent = 'No records match this filter.'; return; }
+    for (const application of visible) {
     const row = document.createElement('div'); row.className = 'application';
-    const info = document.createElement('p'); info.textContent = `${application.full_name || 'Unnamed'} — ${application.email}${application.phone ? ` · ${application.phone}` : ''}`;
-    const approve = document.createElement('button'); approve.textContent = 'Approve'; approve.onclick = () => approveMember(application.id, 'approved');
-    const decline = document.createElement('button'); decline.textContent = 'Decline'; decline.className = 'secondary'; decline.onclick = () => approveMember(application.id, 'declined');
-    row.append(info, approve, decline); list.append(row);
-  }
+      const info = document.createElement('p'); info.textContent = `${application.full_name || 'Unnamed'} — ${application.membership_status} · ${application.source}${application.email ? ` · ${application.email}` : ''}${application.phone ? ` · ${application.phone}` : ''}`;
+      row.append(info);
+      if (application.source === 'Online application' && application.membership_status === 'pending') {
+        const approve = document.createElement('button'); approve.textContent = 'Approve'; approve.onclick = () => approveMember(application.id, 'approved');
+        const decline = document.createElement('button'); decline.textContent = 'Decline'; decline.className = 'secondary'; decline.onclick = () => approveMember(application.id, 'declined');
+        row.append(approve, decline);
+      }
+      list.append(row);
+    }
+  };
+  byId('member-filter').addEventListener('change', renderMemberList); renderMemberList();
 }
 
 document.querySelector('[data-contact-form]')?.addEventListener('submit', submitContact);
