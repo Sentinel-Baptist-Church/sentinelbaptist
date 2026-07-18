@@ -235,6 +235,45 @@ async function renderEnhancedMemberRegister() {
   render();
 }
 
+const manualMemberForm = () => `<section class="card form-card"><p class="eyebrow">Staff entry</p><h2>Add a member</h2><p class="text-slate-600">Staff-added members are approved immediately. Fields may be completed as information is available.</p><form id="manual-member-form" class="form-grid"><input name="full_name" placeholder="Full name" required><input name="email" type="email" placeholder="Email address (optional)"><input name="phone" placeholder="Phone number"><input name="date_of_birth" type="date"><select name="gender"><option value="">Gender</option><option>Female</option><option>Male</option></select><select name="marital_status"><option value="">Marital status</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select><input name="spouse_name" placeholder="Spouse name"><input name="children_count" type="number" min="0" placeholder="Number of children"><input name="occupation" placeholder="Occupation"><textarea name="address" placeholder="Home address"></textarea><select name="baptized"><option value="">Baptized?</option><option value="true">Yes</option><option value="false">No</option></select><input name="baptism_church" placeholder="Church where baptized"><select name="previous_membership"><option value="">Previous church membership?</option><option value="true">Yes</option><option value="false">No</option></select><input name="previous_church" placeholder="Previous church"><textarea name="salvation_story" placeholder="Salvation story / testimony"></textarea><textarea name="pastoral_notes" placeholder="Private pastoral notes"></textarea><fieldset><legend>Ministry interests</legend><label class="check"><input name="ministry_interests" type="checkbox" value="Children"> Children</label><label class="check"><input name="ministry_interests" type="checkbox" value="Youth"> Youth</label><label class="check"><input name="ministry_interests" type="checkbox" value="Music"> Music</label><label class="check"><input name="ministry_interests" type="checkbox" value="Evangelism"> Evangelism</label></fieldset><input name="emergency_contact_name" placeholder="Emergency contact name"><input name="emergency_contact_phone" placeholder="Emergency contact phone"><div class="form-actions"><button>Add approved member</button></div></form></section>`;
+
+const eventForm = () => `<section class="card form-card"><p class="eyebrow">Church calendar</p><h2>Publish an event</h2><p class="text-slate-600">Create an event now; publish it immediately or save it for later.</p><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><label class="field-label">Date and time<input name="starts_at" type="datetime-local" required></label><label class="field-label">Event image<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><div class="form-actions"><button>Save event</button></div></form></section>`;
+
+async function renderStaffDashboard() {
+  const area = byId('staff-area');
+  area.innerHTML = `<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church administration</p><h2>Staff dashboard</h2><p>Manage membership and events from one clear workspace.</p></div></div><nav class="dashboard-nav" aria-label="Staff dashboard"><button class="nav-link" data-page="overview">Overview</button><button class="nav-link" data-page="members">Members</button><button class="nav-link" data-page="add-member">Add member</button><button class="nav-link" data-page="events">Events</button></nav><div id="dashboard-page" class="dashboard-page"></div></section>`;
+  const showPage = async (pageName) => {
+    document.querySelectorAll('.nav-link').forEach((button) => button.classList.toggle('active', button.dataset.page === pageName));
+    const page = byId('dashboard-page');
+    if (pageName === 'members') {
+      page.innerHTML = '<section class="card" id="member-register-card"><div id="member-list">Loading members…</div></section>';
+      await renderEnhancedMemberRegister();
+      return;
+    }
+    if (pageName === 'add-member') {
+      page.innerHTML = manualMemberForm();
+      byId('manual-member-form').addEventListener('submit', addManualMember);
+      return;
+    }
+    if (pageName === 'events') {
+      page.innerHTML = eventForm();
+      byId('event-form').addEventListener('submit', createEvent);
+      return;
+    }
+    page.innerHTML = '<section class="card"><p class="eyebrow">At a glance</p><h2>Membership overview</h2><div id="overview-stats" class="stat-grid"><p class="empty-state">Loading membership totals…</p></div><div class="quick-actions"><button class="outline" data-go="members">View member register</button><button data-go="add-member">Add a member</button><button class="secondary" data-go="events">Create an event</button></div></section>';
+    const [{ data: applications }, { data: manualMembers }] = await Promise.all([
+      supabase.from('profiles').select('membership_status'),
+      supabase.from('manual_members').select('membership_status')
+    ]);
+    const records = [...(applications || []), ...(manualMembers || [])];
+    const stats = [['Total records', records.length], ['Pending review', records.filter((record) => record.membership_status === 'pending').length], ['Approved members', records.filter((record) => record.membership_status === 'approved').length]];
+    byId('overview-stats').innerHTML = stats.map(([label, number]) => `<article class="stat-card"><strong>${number}</strong><span>${label}</span></article>`).join('');
+    page.querySelectorAll('[data-go]').forEach((button) => button.addEventListener('click', () => showPage(button.dataset.go)));
+  };
+  area.querySelectorAll('.nav-link').forEach((button) => button.addEventListener('click', () => showPage(button.dataset.page)));
+  await showPage('overview');
+}
+
 async function renderPortal() {
   if (!byId('portal-content')) return;
   const { data: { user } } = await supabase.auth.getUser();
@@ -255,6 +294,8 @@ async function renderPortal() {
   portalShell(`Welcome, ${profile.full_name || user.email}`, `<p class="text-slate-600 mb-4">Membership status: <strong class="capitalize">${profile.membership_status}</strong></p><button id="sign-out" class="secondary">Sign out</button><div id="staff-area" class="mt-8"></div>`);
   byId('sign-out').addEventListener('click', async () => { await supabase.auth.signOut(); await renderPortal(); });
   if (!staff) return;
+  await renderStaffDashboard();
+  return;
   const area = byId('staff-area');
   area.innerHTML = `<h2 class="text-2xl font-bold mt-8">Staff dashboard</h2><div class="grid lg:grid-cols-2 gap-8 mt-5"><section class="card"><h3>Add a member manually</h3><p class="text-sm text-slate-600">Manual entries are approved immediately and do not need an online account.</p><form id="manual-member-form"><input name="full_name" placeholder="Full name" required><input name="email" type="email" placeholder="Email (optional)"><input name="phone" placeholder="Phone number"><input name="date_of_birth" type="date"><select name="gender"><option value="">Gender</option><option>Female</option><option>Male</option></select><select name="marital_status"><option value="">Marital status</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select><input name="spouse_name" placeholder="Spouse name"><input name="children_count" type="number" min="0" placeholder="Number of children"><input name="occupation" placeholder="Occupation"><textarea name="address" placeholder="Home address"></textarea><select name="baptized"><option value="">Baptized?</option><option value="true">Yes</option><option value="false">No</option></select><input name="baptism_church" placeholder="Church where baptized"><select name="previous_membership"><option value="">Previous church membership?</option><option value="true">Yes</option><option value="false">No</option></select><input name="previous_church" placeholder="Previous church"><textarea name="salvation_story" placeholder="Salvation story / testimony"></textarea><textarea name="pastoral_notes" placeholder="Private pastoral notes"></textarea><fieldset><legend>Ministry interests</legend><label class="check"><input name="ministry_interests" type="checkbox" value="Children"> Children</label><label class="check"><input name="ministry_interests" type="checkbox" value="Youth"> Youth</label><label class="check"><input name="ministry_interests" type="checkbox" value="Music"> Music</label><label class="check"><input name="ministry_interests" type="checkbox" value="Evangelism"> Evangelism</label></fieldset><input name="emergency_contact_name" placeholder="Emergency contact name"><input name="emergency_contact_phone" placeholder="Emergency contact phone"><button>Add approved member</button></form></section><section class="card"><h3>Publish an event</h3><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><input name="starts_at" type="datetime-local" required><input name="image" type="file" accept="image/jpeg,image/png,image/webp"><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><button>Save event</button></form></section></div><section class="card mt-8"><h3>Membership register</h3><label>Filter members<select id="member-filter"><option value="all">All members and applications</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="declined">Declined</option></select></label><div id="member-list">Loading…</div></section>`;
   byId('event-form').addEventListener('submit', createEvent);
