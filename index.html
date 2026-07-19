@@ -36,12 +36,22 @@
 
     html {
         scroll-behavior: smooth;
+        overflow-x: hidden;
     }
 
     body {
         color: var(--text-color);
         background-color: var(--secondary-color);
+        max-width: 100%;
+        overflow-x: hidden;
     }
+
+    img, iframe { max-width: 100%; }
+    .site-header-inner { min-height: 5.5rem; }
+    .mobile-nav-link { display: block; padding: 0.75rem 1rem; border-radius: 0.75rem; color: #1f2937; }
+    .mobile-nav-link:hover, .mobile-nav-link:focus-visible { background: #f8f6f1; color: var(--primary-hover); outline: none; }
+    #menu-btn { font-size: 0; }
+    #menu-btn::after { content: "☰"; font-size: 1.55rem; line-height: 1; }
 
     /* =========================
        BACKGROUNDS
@@ -197,45 +207,45 @@
 <body class="bg-gray-100 text-gray-800 font-sans">
 
     <!-- NAVBAR -->
-<header class="fixed top-0 left-0 w-full bg-primary shadow-xl z-50">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+<header class="fixed inset-x-0 top-0 w-full max-w-full bg-primary shadow-xl z-50">
+    <div class="site-header-inner max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
 
         <!-- <h1 class="text-2xl font-bold text-primary">
            Sentinel Baptist Church
         </h1> -->
 
-        <a href="#home"> <img src="/images/logo.jpeg" alt="Sentinel Baptist Church" class="h-16 w-auto object-contain" > </a>
+        <a href="#home" class="shrink-0" aria-label="Sentinel Baptist Church home"><img src="images/logo.jpeg" alt="Sentinel Baptist Church" class="h-12 sm:h-14 w-auto object-contain"></a>
         
 
         <!-- Desktop Menu -->
-        <nav class="hidden md:flex space-x-8 text-white font-medium">
-            <a href="#home" class="hover:text-primary transition">Home</a>
-            <a href="#about" class="hover:text-primary transition">About</a>
-            <a href="#ministries" class="hover:text-primary transition">Ministries</a>
-            <a href="#sermons" class="hover:text-primary transition">Sermons</a>
-            <a href="#events" class="hover:text-primary transition">Events</a>
-            <a href="portal.html" class="hover:text-primary transition">Member Portal</a>
-            <a href="#contact" class="hover:text-primary transition">Contact</a>
+        <nav class="hidden lg:flex items-center gap-5 xl:gap-7 text-white font-medium text-sm xl:text-base">
+             <a href="#home" class="hover:text-white/80 transition">Home</a>
+             <a href="#about" class="hover:text-white/80 transition">About</a>
+             <a href="#ministries" class="hover:text-white/80 transition">Ministries</a>
+             <a href="#sermons" class="hover:text-white/80 transition">Sermons</a>
+             <a href="#events" class="hover:text-white/80 transition">Events</a>
+             <a href="portal.html" class="hover:text-white/80 transition">Member Portal</a>
+             <a href="#contact" class="hover:text-white/80 transition">Contact</a>
         </nav>
 
         <!-- Mobile Button -->
-        <button id="menu-btn" class="md:hidden text-3xl text-white">
+        <button id="menu-btn" class="lg:hidden inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/40 text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white" type="button" aria-label="Open navigation menu" aria-controls="mobile-menu" aria-expanded="false">
             ☰
         </button>
     </div>
 
     <!-- Mobile Menu -->
-    <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
-        <div class="flex flex-col px-6 py-4 space-y-4 font-medium">
-            <a href="#home">Home</a>
-            <a href="#about">About</a>
-            <a href="#ministries">Ministries</a>
-            <a href="#sermons">Sermons</a>
-            <a href="#events">Events</a>
-            <a href="portal.html">Member Portal</a>
-            <a href="statement-of-faith.html">Statement of Faith</a>
-            <a href="#contact">Contact</a>
-        </div>
+    <div id="mobile-menu" class="hidden lg:hidden max-h-[calc(100vh-5.5rem)] overflow-y-auto border-t border-black/10 bg-white shadow-lg">
+        <nav class="mx-auto flex max-w-7xl flex-col px-4 sm:px-6 py-4 font-semibold" aria-label="Mobile navigation">
+            <a class="mobile-nav-link" href="#home">Home</a>
+            <a class="mobile-nav-link" href="#about">About</a>
+            <a class="mobile-nav-link" href="#ministries">Ministries</a>
+            <a class="mobile-nav-link" href="#sermons">Sermons</a>
+            <a class="mobile-nav-link" href="#events">Events</a>
+            <a class="mobile-nav-link" href="portal.html">Member Portal</a>
+            <a class="mobile-nav-link" href="statement-of-faith.html">Statement of Faith</a>
+            <a class="mobile-nav-link" href="#contact">Contact</a>
+        </nav>
     </div>
 </header>
 
@@ -767,7 +777,7 @@ Mr. Jide Owolabi is a member of the pastoral staff at the Met Tab. He serves as 
             </h3>
 
             <div class="overflow-hidden rounded-2xl shadow-lg border border-white/10">
-               <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1949.694754468773!2d25.411797717304974!3d-12.221884667470592!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x197ab333a69e71c3%3A0x782d59e2360a8a3d!2sSentinel%20Baptist%20Church!5e0!3m2!1sen!2szm!4v1781940231338!5m2!1sen!2szm" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+               <iframe title="Sentinel Baptist Church location" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1949.694754468773!2d25.411797717304974!3d-12.221884667470592!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x197ab333a69e71c3%3A0x782d59e2360a8a3d!2sSentinel%20Baptist%20Church!5e0!3m2!1sen!2szm!4v1781940231338!5m2!1sen!2szm" width="600" height="450" class="block h-72 w-full border-0" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
 
             <a href="https://maps.app.goo.gl/sVpPGBTo4f2Ah59p9"
@@ -799,7 +809,17 @@ Mr. Jide Owolabi is a member of the pastoral staff at the Met Tab. He serves as 
         const mobileMenu = document.getElementById('mobile-menu');
 
         menuBtn.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
+            const isOpen = !mobileMenu.classList.toggle('hidden');
+            menuBtn.setAttribute('aria-expanded', String(isOpen));
+            menuBtn.setAttribute('aria-label', isOpen ? 'Close navigation menu' : 'Open navigation menu');
+        });
+
+        mobileMenu.querySelectorAll('a').forEach((link) => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+                menuBtn.setAttribute('aria-expanded', 'false');
+                menuBtn.setAttribute('aria-label', 'Open navigation menu');
+            });
         });
     </script>
     <script type="module" src="app.js"></script>
