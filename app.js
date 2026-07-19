@@ -47,6 +47,37 @@ const setFormLoading = (form, loading, label) => {
   }
 };
 
+// Convert placeholder-only controls in the long membership application into
+// persistent labels. This makes the form easier to scan and keeps each field
+// understandable after someone starts typing.
+const addVisibleFieldLabels = (form) => {
+  const labels = {
+    full_name: 'Full name', date_of_birth: 'Date of birth', gender: 'Gender',
+    phone: 'Phone number', email: 'Email address', address: 'Home address',
+    marital_status: 'Marital status', spouse_name: 'Spouse name (if applicable)',
+    children_count: 'Number of children', occupation: 'Occupation / work',
+    baptism_date: 'Baptism date', baptism_church: 'Church where baptized',
+    previous_church: 'Previous church (if applicable)',
+    previous_membership_reason: 'Reason for leaving or transfer',
+    salvation_story: 'How did you come to trust in Jesus Christ?',
+    gospel_understanding: 'What is the gospel, in your own words?',
+    repentance_and_faith: 'What do repentance and faith in Christ mean to you?',
+    assurance_of_salvation: 'What is the basis of your assurance of salvation?',
+    emergency_contact_name: 'Emergency contact name',
+    emergency_contact_phone: 'Emergency contact phone'
+  };
+  form.querySelectorAll('input, textarea, select').forEach((control) => {
+    if (control.type === 'checkbox' || control.closest('label')) return;
+    const text = labels[control.name] || control.getAttribute('placeholder');
+    if (!text) return;
+    const label = document.createElement('label');
+    label.className = 'field-label';
+    label.textContent = text;
+    control.parentNode.insertBefore(label, control);
+    label.append(control);
+  });
+};
+
 const formatDate = (value) => new Intl.DateTimeFormat('en-ZM', {
   dateStyle: 'medium', timeStyle: 'short'
 }).format(new Date(value));
@@ -213,7 +244,6 @@ function openMemberDetails(member) {
     const title = document.createElement('h3'); title.className = 'font-bold text-lg'; title.textContent = sectionTitle;
     const grid = document.createElement('dl'); grid.className = 'detail-grid';
     for (const [label, key] of fields) {
-      if (member[key] === null || member[key] === undefined || member[key] === '') continue;
       const item = document.createElement('div'); item.className = 'detail-item';
       const term = document.createElement('dt'); term.textContent = label;
       const definition = document.createElement('dd'); definition.textContent = displayValue(member[key]);
@@ -253,7 +283,7 @@ function openMemberEditor(member) {
     }
     const { error } = await supabase.from(table).update(payload).eq('id', member.id);
     setFormLoading(form, false);
-    if (error) return formFeedback(form, error.message, 'error');
+    if (error) return formFeedback(form, `Could not save changes: ${error.message}`, 'error');
     close(); message('Member record updated.'); await renderPortal();
   });
   backdrop.append(panel); backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); }); document.body.append(backdrop);
@@ -316,28 +346,31 @@ const manualMemberForm = () => `<section class="card form-card"><p class="eyebro
 
 const eventForm = () => `<section class="card form-card"><p class="eyebrow">Church calendar</p><h2>Publish an event</h2><p class="text-slate-600">Create an event now; publish it immediately or save it for later.</p><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><label class="field-label">Date and time<input name="starts_at" type="datetime-local" required></label><label class="field-label">Event image<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><div class="form-actions"><button>Save event</button></div></form></section>`;
 
-async function renderStaffDashboard() {
+async function renderStaffDashboard(role) {
+  const canManageMembers = ['staff', 'admin', 'pastor', 'membership'].includes(role);
+  const canManageEvents = ['staff', 'admin', 'events'].includes(role);
   const area = byId('staff-area');
-  area.innerHTML = `<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church administration</p><h2>Staff dashboard</h2><p>Manage membership and events from one clear workspace.</p></div></div><nav class="dashboard-nav" aria-label="Staff dashboard"><button class="nav-link" data-page="overview">Overview</button><button class="nav-link" data-page="members">Members</button><button class="nav-link" data-page="add-member">Add member</button><button class="nav-link" data-page="events">Events</button></nav><div id="dashboard-page" class="dashboard-page"></div></section>`;
+  area.innerHTML = `<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church administration</p><h2>Staff dashboard</h2><p>Manage the areas assigned to your role.</p></div></div><nav class="dashboard-nav" aria-label="Staff dashboard"><button class="nav-link" data-page="overview">Overview</button>${canManageMembers ? '<button class="nav-link" data-page="members">Members</button><button class="nav-link" data-page="add-member">Add member</button>' : ''}${canManageEvents ? '<button class="nav-link" data-page="events">Events</button>' : ''}</nav><div id="dashboard-page" class="dashboard-page"></div></section>`;
   const showPage = async (pageName) => {
     document.querySelectorAll('.nav-link').forEach((button) => button.classList.toggle('active', button.dataset.page === pageName));
     const page = byId('dashboard-page');
-    if (pageName === 'members') {
+    if (pageName === 'members' && canManageMembers) {
       page.innerHTML = '<section class="card" id="member-register-card"><div id="member-list">Loading members…</div></section>';
       await renderEnhancedMemberRegister();
       return;
     }
-    if (pageName === 'add-member') {
+    if (pageName === 'add-member' && canManageMembers) {
       page.innerHTML = manualMemberForm();
       byId('manual-member-form').addEventListener('submit', addManualMember);
       return;
     }
-    if (pageName === 'events') {
+    if (pageName === 'events' && canManageEvents) {
       page.innerHTML = eventForm();
       byId('event-form').addEventListener('submit', createEvent);
       return;
     }
-    page.innerHTML = '<section class="card"><p class="eyebrow">At a glance</p><h2>Membership overview</h2><div id="overview-stats" class="stat-grid"><p class="empty-state">Loading membership totals…</p></div><div class="quick-actions"><button class="outline" data-go="members">View member register</button><button data-go="add-member">Add a member</button><button class="secondary" data-go="events">Create an event</button></div></section>';
+    if (!canManageMembers) { page.innerHTML = '<section class="card"><p class="eyebrow">Your role</p><h2>Events Editor</h2><p class="text-slate-600">You can create and manage church events. Membership records are protected and are not available to this role.</p><div class="quick-actions"><button data-go="events">Create an event</button></div></section>'; page.querySelector('[data-go]').onclick = () => showPage('events'); return; }
+    page.innerHTML = `<section class="card"><p class="eyebrow">At a glance</p><h2>Membership overview</h2><div id="overview-stats" class="stat-grid"><p class="empty-state">Loading membership totals…</p></div><div class="quick-actions"><button class="outline" data-go="members">View member register</button><button data-go="add-member">Add a member</button>${canManageEvents ? '<button class="secondary" data-go="events">Create an event</button>' : ''}</div></section>`;
     const [{ data: applications }, { data: manualMembers }] = await Promise.all([
       supabase.from('profiles').select('membership_status'),
       supabase.from('manual_members').select('membership_status')
@@ -357,6 +390,7 @@ function renderPublicPortal() {
   byId('register-form').addEventListener('submit', register);
   const signInForm = byId('login-form');
   const registrationForm = byId('register-form');
+  addVisibleFieldLabels(registrationForm);
   document.querySelector('.auth-welcome')?.remove();
   signInForm.remove();
   document.querySelector('.auth-shell')?.classList.add('registration-only');
@@ -395,11 +429,11 @@ async function renderPortal() {
   }
   const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
   if (error) return message('Your profile is still being prepared. Please refresh shortly.', 'error');
-  const staff = ['staff', 'admin'].includes(profile.role);
+  const staff = ['staff', 'admin', 'pastor', 'membership', 'events'].includes(profile.role);
   portalShell(`Welcome, ${profile.full_name || user.email}`, `<p class="text-slate-600 mb-4">Membership status: <strong class="capitalize">${profile.membership_status}</strong></p><button id="sign-out" class="secondary">Sign out</button><div id="staff-area" class="mt-8"></div>`);
   byId('sign-out').addEventListener('click', async () => { await supabase.auth.signOut(); await renderPortal(); });
   if (!staff) return;
-  await renderStaffDashboard();
+  await renderStaffDashboard(profile.role);
   return;
   const area = byId('staff-area');
   area.innerHTML = `<h2 class="text-2xl font-bold mt-8">Staff dashboard</h2><div class="grid lg:grid-cols-2 gap-8 mt-5"><section class="card"><h3>Add a member manually</h3><p class="text-sm text-slate-600">Manual entries are approved immediately and do not need an online account.</p><form id="manual-member-form"><input name="full_name" placeholder="Full name" required><input name="email" type="email" placeholder="Email (optional)"><input name="phone" placeholder="Phone number"><input name="date_of_birth" type="date"><select name="gender"><option value="">Gender</option><option>Female</option><option>Male</option></select><select name="marital_status"><option value="">Marital status</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select><input name="spouse_name" placeholder="Spouse name"><input name="children_count" type="number" min="0" placeholder="Number of children"><input name="occupation" placeholder="Occupation"><textarea name="address" placeholder="Home address"></textarea><select name="baptized"><option value="">Baptized?</option><option value="true">Yes</option><option value="false">No</option></select><input name="baptism_church" placeholder="Church where baptized"><select name="previous_membership"><option value="">Previous church membership?</option><option value="true">Yes</option><option value="false">No</option></select><input name="previous_church" placeholder="Previous church"><textarea name="salvation_story" placeholder="Salvation story / testimony"></textarea><textarea name="pastoral_notes" placeholder="Private pastoral notes"></textarea><fieldset><legend>Ministry interests</legend><label class="check"><input name="ministry_interests" type="checkbox" value="Children"> Children</label><label class="check"><input name="ministry_interests" type="checkbox" value="Youth"> Youth</label><label class="check"><input name="ministry_interests" type="checkbox" value="Music"> Music</label><label class="check"><input name="ministry_interests" type="checkbox" value="Evangelism"> Evangelism</label></fieldset><input name="emergency_contact_name" placeholder="Emergency contact name"><input name="emergency_contact_phone" placeholder="Emergency contact phone"><button>Add approved member</button></form></section><section class="card"><h3>Publish an event</h3><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><input name="starts_at" type="datetime-local" required><input name="image" type="file" accept="image/jpeg,image/png,image/webp"><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><button>Save event</button></form></section></div><section class="card mt-8"><h3>Membership register</h3><label>Filter members<select id="member-filter"><option value="all">All members and applications</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="declined">Declined</option></select></label><div id="member-list">Loading…</div></section>`;
