@@ -274,6 +274,101 @@ async function createBlogPost(event) {
   formFeedback(form, values.published === 'on' ? 'Article published.' : 'Draft saved.', 'success');
 }
 
+const localDateTimeValue = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+};
+
+async function renderContentManager(kind, container) {
+  const isBlog = kind === 'blog';
+  const table = isBlog ? 'blog_posts' : 'events';
+  const fields = isBlog
+    ? 'id,title,excerpt,content,image_path,published,published_at,created_at'
+    : 'id,title,description,location,starts_at,image_path,published,created_at';
+  const { data, error } = await supabase.from(table).select(fields).order('created_at', { ascending: false });
+  if (error) { container.innerHTML = '<p class="empty-state">Could not load saved content. Please refresh and try again.</p>'; return; }
+  container.replaceChildren();
+  if (!data?.length) { container.innerHTML = '<p class="empty-state">No saved content yet.</p>'; return; }
+  for (const item of data) {
+    const card = document.createElement('article');
+    card.className = 'member-card';
+    const details = document.createElement('div');
+    const title = document.createElement('h4'); title.textContent = item.title;
+    const meta = document.createElement('p'); meta.className = 'member-meta';
+    meta.textContent = isBlog
+      ? `${item.published ? 'Published' : 'Draft'} · ${formatBlogDate(item.published_at || item.created_at)}`
+      : `${item.published ? 'Published' : 'Draft'} · ${formatDate(item.starts_at)}`;
+    details.append(title, meta);
+    const actions = document.createElement('div'); actions.className = 'member-actions';
+    const edit = document.createElement('button'); edit.className = 'outline'; edit.textContent = 'Edit';
+    edit.onclick = () => openContentEditor(kind, item, () => renderContentManager(kind, container));
+    const toggle = document.createElement('button'); toggle.className = 'secondary'; toggle.textContent = item.published ? 'Unpublish' : 'Publish';
+    toggle.onclick = async () => {
+      const payload = { published: !item.published };
+      if (isBlog && !item.published) payload.published_at = new Date().toISOString();
+      const { error: updateError } = await supabase.from(table).update(payload).eq('id', item.id);
+      if (updateError) return message(updateError.message, 'error');
+      await renderContentManager(kind, container);
+    };
+    const remove = document.createElement('button'); remove.className = 'secondary'; remove.textContent = 'Delete';
+    remove.onclick = async () => {
+      if (!window.confirm(`Delete “${item.title}”? This cannot be undone.`)) return;
+      const { error: deleteError } = await supabase.from(table).delete().eq('id', item.id);
+      if (deleteError) return message(deleteError.message, 'error');
+      await renderContentManager(kind, container);
+    };
+    actions.append(edit, toggle, remove); card.append(details, actions); container.append(card);
+  }
+}
+
+function openContentEditor(kind, item, onSaved) {
+  const isBlog = kind === 'blog';
+  const backdrop = document.createElement('div'); backdrop.className = 'detail-backdrop';
+  const panel = document.createElement('section'); panel.className = 'detail-panel';
+  panel.innerHTML = `<div class="detail-head"><div><p class="eyebrow">Content editor</p><h2 class="text-2xl font-bold">Edit ${isBlog ? 'article' : 'event'}</h2></div><button class="secondary" type="button">Close</button></div><form class="form-grid mt-5"></form>`;
+  const form = panel.querySelector('form');
+  const addField = (label, name, value, type = 'text') => {
+    const wrapper = document.createElement('label'); wrapper.className = 'field-label'; wrapper.textContent = label;
+    const control = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+    control.name = name; control.value = value || '';
+    if (type !== 'textarea') control.type = type;
+    wrapper.append(control); form.append(wrapper);
+  };
+  addField(isBlog ? 'Article title' : 'Event title', 'title', item.title);
+  if (isBlog) {
+    addField('Short introduction', 'excerpt', item.excerpt, 'textarea');
+    addField('Article content', 'content', item.content, 'textarea');
+  } else {
+    addField('Description', 'description', item.description, 'textarea');
+    addField('Location', 'location', item.location);
+    addField('Date and time', 'starts_at', localDateTimeValue(item.starts_at), 'datetime-local');
+  }
+  const publishedLabel = document.createElement('label'); publishedLabel.className = 'check';
+  const published = document.createElement('input'); published.type = 'checkbox'; published.name = 'published'; published.checked = item.published;
+  publishedLabel.append(published, document.createTextNode(' Publish this content')); form.append(publishedLabel);
+  const note = document.createElement('p'); note.className = 'section-help'; note.textContent = 'The featured image remains unchanged when editing.';
+  form.append(note);
+  const feedback = document.createElement('p'); feedback.className = 'form-feedback'; feedback.dataset.formFeedback = ''; form.append(feedback);
+  const save = document.createElement('button'); save.type = 'submit'; save.textContent = 'Save changes'; form.append(save);
+  const close = () => backdrop.remove(); panel.querySelector('button').onclick = close;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(form));
+    const payload = isBlog
+      ? { title: values.title.trim(), excerpt: values.excerpt.trim(), content: values.content.trim(), published: values.published === 'on' }
+      : { title: values.title.trim(), description: values.description.trim(), location: values.location.trim() || null, starts_at: new Date(values.starts_at).toISOString(), published: values.published === 'on' };
+    if (isBlog && payload.published && !item.published) payload.published_at = new Date().toISOString();
+    setFormLoading(form, true, 'Saving changes…');
+    const { error } = await supabase.from(isBlog ? 'blog_posts' : 'events').update(payload).eq('id', item.id);
+    setFormLoading(form, false);
+    if (error) return formFeedback(form, error.message, 'error');
+    close(); message('Content updated.'); await onSaved();
+  });
+  backdrop.append(panel); backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); }); document.body.append(backdrop);
+}
+
 async function addManualMember(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -459,13 +554,15 @@ async function renderStaffDashboard(role) {
       return;
     }
     if (pageName === 'events' && canManageEvents) {
-      page.innerHTML = eventForm();
+      page.innerHTML = eventForm() + '<section class="card mt-6"><p class="eyebrow">Saved events</p><h2>Manage events</h2><div id="event-manager" class="member-list">Loading events…</div></section>';
       byId('event-form').addEventListener('submit', createEvent);
+      await renderContentManager('event', byId('event-manager'));
       return;
     }
     if (pageName === 'blog' && canManageEvents) {
-      page.innerHTML = blogForm();
+      page.innerHTML = blogForm() + '<section class="card mt-6"><p class="eyebrow">Saved articles</p><h2>Manage articles</h2><div id="blog-manager" class="member-list">Loading articles…</div></section>';
       byId('blog-form').addEventListener('submit', createBlogPost);
+      await renderContentManager('blog', byId('blog-manager'));
       return;
     }
     if (!canManageMembers) { page.innerHTML = '<section class="card"><p class="eyebrow">Your role</p><h2>Events Editor</h2><p class="text-slate-600">You can create and manage church events. Membership records are protected and are not available to this role.</p><div class="quick-actions"><button data-go="events">Create an event</button></div></section>'; page.querySelector('[data-go]').onclick = () => showPage('events'); return; }
