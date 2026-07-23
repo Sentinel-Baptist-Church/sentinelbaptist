@@ -285,13 +285,15 @@ function openMemberEditor(member) {
     event.preventDefault(); setFormLoading(form, true, 'Saving changes…');
     const values = Object.fromEntries(new FormData(form));
     const table = member.source === 'Staff entry' ? 'manual_members' : 'profiles';
-    const payload = { ...values };
+    const payload = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, typeof value === 'string' ? value.trim() || null : value]));
+    if (!payload.full_name) { setFormLoading(form, false); return formFeedback(form, 'A member name is required.', 'error'); }
+    if (table === 'profiles' && !payload.email) { setFormLoading(form, false); return formFeedback(form, 'An online member record must have an email address.', 'error'); }
     if (table === 'profiles' && values.membership_status !== member.membership_status) {
       const { data: { user } } = await supabase.auth.getUser(); payload.reviewed_at = new Date().toISOString(); payload.reviewed_by = user.id;
     }
-    const { error } = await supabase.from(table).update(payload).eq('id', member.id);
+    const { data, error } = await supabase.from(table).update(payload).eq('id', member.id).select('id').maybeSingle();
     setFormLoading(form, false);
-    if (error) return formFeedback(form, `Could not save changes: ${error.message}`, 'error');
+    if (error || !data) return formFeedback(form, `Could not save changes: ${error?.message || 'You do not have permission to update this record.'}`, 'error');
     close(); message('Member record updated.'); await renderPortal();
   });
   backdrop.append(panel); backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); }); document.body.append(backdrop);
