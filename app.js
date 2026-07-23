@@ -272,7 +272,10 @@ function openMemberEditor(member) {
   const fields = [['full_name', 'Full name', 'text'], ['email', 'Email address', 'email'], ['phone', 'Phone number', 'text'], ['address', 'Home address', 'textarea'], ['occupation', 'Occupation', 'text'], ['pastoral_notes', 'Private pastoral notes', 'textarea']];
   for (const [key, label, type] of fields) {
     const wrapper = document.createElement('label'); wrapper.className = 'field-label'; wrapper.textContent = label;
-    const control = document.createElement(type === 'textarea' ? 'textarea' : 'input'); control.name = key; control.value = member[key] || ''; control.type = type === 'textarea' ? undefined : type;
+    const control = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+    control.name = key;
+    control.value = member[key] || '';
+    if (type !== 'textarea') control.type = type;
     wrapper.append(control); form.append(wrapper);
   }
   const statusLabel = document.createElement('label'); statusLabel.className = 'field-label'; statusLabel.textContent = 'Membership status';
