@@ -119,6 +119,57 @@ async function loadPublicEvents() {
   }
 }
 
+const formatBlogDate = (value) => new Intl.DateTimeFormat('en-ZM', {
+  dateStyle: 'long'
+}).format(new Date(value));
+
+async function loadPublicBlogs() {
+  const container = document.querySelector('[data-blog-posts]');
+  if (!container) return;
+  const { data, error } = await supabase.from('blog_posts')
+    .select('id,title,excerpt,content,image_path,published_at,created_at')
+    .eq('published', true)
+    .order('published_at', { ascending: false })
+    .limit(24);
+  if (error) {
+    container.innerHTML = '<p class="empty-posts md:col-span-2">Articles are not available yet. Please check back soon.</p>';
+    return;
+  }
+  if (!data?.length) {
+    container.innerHTML = '<p class="empty-posts md:col-span-2">Our first articles are coming soon. Please check back shortly.</p>';
+    return;
+  }
+  container.replaceChildren();
+  for (const post of data) {
+    const card = document.createElement('article');
+    card.className = 'post-card';
+    if (post.image_path) {
+      const { data: urlData } = supabase.storage.from('event-images').getPublicUrl(post.image_path);
+      const image = document.createElement('img');
+      image.src = urlData.publicUrl;
+      image.alt = '';
+      card.append(image);
+    }
+    const content = document.createElement('div');
+    content.className = 'post-card-content';
+    const date = document.createElement('p');
+    date.className = 'post-date';
+    date.textContent = formatBlogDate(post.published_at || post.created_at);
+    const title = document.createElement('h2');
+    title.className = 'mt-2 text-2xl font-bold text-slate-900';
+    title.textContent = post.title;
+    const excerpt = document.createElement('p');
+    excerpt.className = 'mt-3 leading-relaxed text-slate-600';
+    excerpt.textContent = post.excerpt;
+    const body = document.createElement('p');
+    body.className = 'post-content mt-5';
+    body.textContent = post.content;
+    content.append(date, title, excerpt, body);
+    card.append(content);
+    container.append(card);
+  }
+}
+
 async function submitContact(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -193,6 +244,34 @@ async function createEvent(event) {
   });
   if (error) return message(error.message, 'error');
   form.reset(); message('Event saved.'); await renderPortal();
+}
+
+async function createBlogPost(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = Object.fromEntries(new FormData(form));
+  const { data: { user } } = await supabase.auth.getUser();
+  let image_path = null;
+  const image = form.elements.image.files[0];
+  if (image) {
+    image_path = `${user.id}/blogs/${crypto.randomUUID()}-${image.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
+    const { error: uploadError } = await supabase.storage.from('event-images').upload(image_path, image, { contentType: image.type });
+    if (uploadError) return formFeedback(form, uploadError.message, 'error');
+  }
+  setFormLoading(form, true, 'Saving article…');
+  const { error } = await supabase.from('blog_posts').insert({
+    title: values.title,
+    excerpt: values.excerpt,
+    content: values.content,
+    image_path,
+    published: values.published === 'on',
+    published_at: values.published === 'on' ? new Date().toISOString() : null,
+    created_by: user.id
+  });
+  setFormLoading(form, false);
+  if (error) return formFeedback(form, error.message, 'error');
+  form.reset();
+  formFeedback(form, values.published === 'on' ? 'Article published.' : 'Draft saved.', 'success');
 }
 
 async function addManualMember(event) {
@@ -359,11 +438,13 @@ const manualMemberForm = () => `<section class="card form-card"><p class="eyebro
 
 const eventForm = () => `<section class="card form-card"><p class="eyebrow">Church calendar</p><h2>Publish an event</h2><p class="text-slate-600">Create an event now; publish it immediately or save it for later.</p><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><label class="field-label">Date and time<input name="starts_at" type="datetime-local" required></label><label class="field-label">Event image<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><div class="form-actions"><button>Save event</button></div></form></section>`;
 
+const blogForm = () => `<section class="card form-card"><p class="eyebrow">Church blog</p><h2>Write an article</h2><p class="text-slate-600">Publish biblical encouragement, church news, or a resource for the congregation.</p><form id="blog-form"><label class="field-label">Article title<input name="title" placeholder="e.g. Growing together in grace" required></label><label class="field-label">Short introduction<input name="excerpt" placeholder="A brief summary readers see first" maxlength="500" required></label><label class="field-label">Article content<textarea name="content" placeholder="Write the full article here…" required></textarea></label><label class="field-label">Featured image (optional)<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><div class="form-actions"><button>Save article</button></div></form></section>`;
+
 async function renderStaffDashboard(role) {
   const canManageMembers = ['staff', 'admin', 'pastor', 'membership'].includes(role);
   const canManageEvents = ['staff', 'admin', 'events'].includes(role);
   const area = byId('staff-area');
-  area.innerHTML = `<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church administration</p><h2>Staff dashboard</h2><p>Manage the areas assigned to your role.</p></div></div><nav class="dashboard-nav" aria-label="Staff dashboard"><button class="nav-link" data-page="overview">Overview</button>${canManageMembers ? '<button class="nav-link" data-page="members">Members</button><button class="nav-link" data-page="add-member">Add member</button>' : ''}${canManageEvents ? '<button class="nav-link" data-page="events">Events</button>' : ''}</nav><div id="dashboard-page" class="dashboard-page"></div></section>`;
+  area.innerHTML = `<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church administration</p><h2>Staff dashboard</h2><p>Manage the areas assigned to your role.</p></div></div><nav class="dashboard-nav" aria-label="Staff dashboard"><button class="nav-link" data-page="overview">Overview</button>${canManageMembers ? '<button class="nav-link" data-page="members">Members</button><button class="nav-link" data-page="add-member">Add member</button>' : ''}${canManageEvents ? '<button class="nav-link" data-page="events">Events</button><button class="nav-link" data-page="blog">Blog</button>' : ''}</nav><div id="dashboard-page" class="dashboard-page"></div></section>`;
   const showPage = async (pageName) => {
     document.querySelectorAll('.nav-link').forEach((button) => button.classList.toggle('active', button.dataset.page === pageName));
     const page = byId('dashboard-page');
@@ -380,6 +461,11 @@ async function renderStaffDashboard(role) {
     if (pageName === 'events' && canManageEvents) {
       page.innerHTML = eventForm();
       byId('event-form').addEventListener('submit', createEvent);
+      return;
+    }
+    if (pageName === 'blog' && canManageEvents) {
+      page.innerHTML = blogForm();
+      byId('blog-form').addEventListener('submit', createBlogPost);
       return;
     }
     if (!canManageMembers) { page.innerHTML = '<section class="card"><p class="eyebrow">Your role</p><h2>Events Editor</h2><p class="text-slate-600">You can create and manage church events. Membership records are protected and are not available to this role.</p><div class="quick-actions"><button data-go="events">Create an event</button></div></section>'; page.querySelector('[data-go]').onclick = () => showPage('events'); return; }
@@ -499,4 +585,4 @@ async function renderPortal() {
 }
 
 document.querySelector('[data-contact-form]')?.addEventListener('submit', submitContact);
-loadPublicEvents(); renderPortal();
+loadPublicEvents(); loadPublicBlogs(); renderPortal();
