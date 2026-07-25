@@ -6,26 +6,44 @@
   <title>Church Blog | Sentinel Baptist Church</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{--gold:#b2730c;--gold-dark:#8f5b09;--ink:#172033;--canvas:#f8f6f1}
-    body{background:var(--canvas);color:var(--ink)}.post-card{overflow:hidden;border:1px solid #e5e7eb;border-radius:1.25rem;background:#fff;box-shadow:0 10px 28px #1720330d}.post-card img{width:100%;height:15rem;object-fit:cover}.post-card-content{padding:1.6rem}.post-date{color:var(--gold-dark);font-size:.78rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.post-content{white-space:pre-wrap;color:#475569;line-height:1.75}.empty-posts{padding:3rem 1rem;text-align:center;color:#64748b}
+    :root{--gold:#b2730c;--gold-dark:#815007;--ink:#172033;--canvas:#f8f6f1;--paper:#fffdf8}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--canvas);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.site-header{background:#fffdf8eF;backdrop-filter:blur(12px);border-bottom:1px solid #e6dfd2}.brand-mark{filter:drop-shadow(0 2px 4px #17203320)}.hero{min-height:31rem;background:linear-gradient(90deg,rgba(20,14,7,.80),rgba(20,14,7,.58) 48%,rgba(20,14,7,.28)),url('images/blog.jpg') center/cover no-repeat}.hero-inner{min-height:31rem;display:flex;align-items:center}.eyebrow{color:#f5cf83;font-size:.76rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase}.hero h1{max-width:46rem;font-family:Georgia,"Times New Roman",serif;text-wrap:balance}.hero-copy{max-width:38rem;color:#fff9ed;font-size:1.14rem;line-height:1.75}.hero-rule{width:4rem;height:.22rem;border-radius:99px;background:var(--gold);margin:1.25rem 0}.article-section{margin-top:-3.25rem;position:relative}.section-heading{font-family:Georgia,"Times New Roman",serif}.article-surface{background:var(--paper);border:1px solid #e9dfcd;border-radius:1.5rem;padding:clamp(1.35rem,4vw,3rem);box-shadow:0 22px 50px rgba(44,31,12,.12)}.post-card{overflow:hidden;border:1px solid #e8e2d8;border-radius:1.1rem;background:#fff;box-shadow:0 6px 20px rgba(23,32,51,.06);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}.post-card:hover{transform:translateY(-4px);border-color:#d7b36d;box-shadow:0 15px 30px rgba(23,32,51,.12)}.post-card img{width:100%;height:15rem;object-fit:cover}.post-card-content{padding:1.6rem}.post-date{color:var(--gold-dark);font-size:.74rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.post-content{white-space:pre-wrap;color:#475569;line-height:1.75}.empty-posts{padding:3rem 1rem;text-align:center;color:#64748b}.footer-link:focus-visible,.header-link:focus-visible{outline:3px solid #d7a441;outline-offset:3px}@media(max-width:640px){.hero,.hero-inner{min-height:27rem}.hero{background-position:60% center}.article-section{margin-top:-1.7rem}.article-surface{border-radius:1.15rem}.post-card-content{padding:1.35rem}}
   </style>
 </head>
 <body>
-  <header class="bg-[#b2730c] text-white shadow-lg">
-    <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-      <a class="flex items-center gap-3 font-bold text-lg sm:text-xl" href="index.html"><img src="images/logo.jpeg" alt="" class="h-10 w-auto">Sentinel Baptist Church</a>
-      <a class="rounded-lg px-3 py-2 font-semibold transition hover:bg-white/15" href="index.html">Back to website</a>
+  <header class="site-header sticky top-0 z-30">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <a class="header-link flex items-center gap-3 font-bold text-[#172033]" href="index.html" aria-label="Sentinel Baptist Church home"><img src="images/logo.jpeg" alt="" class="brand-mark h-10 w-auto"><span class="hidden sm:inline">Sentinel Baptist Church</span></a>
+      <a class="header-link rounded-xl bg-[#b2730c] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#8f5b09]" href="index.html">Back to website</a>
     </div>
   </header>
-  <main class="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-    <p class="text-sm font-extrabold uppercase tracking-[.18em] text-[#8f5b09]">Sentinel Baptist Church</p>
-    <h1 class="mt-3 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">Church Blog</h1>
-    <p class="mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">Biblical encouragement, church news, and resources to help us grow together in Christ.</p>
-    <section class="mt-10 grid gap-7 md:grid-cols-2" data-blog-posts aria-live="polite">
-      <p class="empty-posts md:col-span-2">Loading articles…</p>
+
+  <main>
+    <section class="hero text-white">
+      <div class="hero-inner mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10">
+        <div>
+          <p class="eyebrow">Sentinel Baptist Church</p>
+          <div class="hero-rule" aria-hidden="true"></div>
+          <h1 class="text-5xl font-bold leading-[1.03] tracking-tight sm:text-6xl lg:text-7xl">Stories, truth, and encouragement.</h1>
+          <p class="hero-copy mt-6">Biblical encouragement, church news, and resources to help us grow together in Christ.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="article-section mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+      <div class="article-surface">
+        <div class="flex flex-col gap-3 border-b border-[#e9dfcd] pb-7 sm:flex-row sm:items-end sm:justify-between">
+          <div><p class="text-xs font-extrabold uppercase tracking-[.16em] text-[#8f5b09]">From our church family</p><h2 class="section-heading mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">Latest articles</h2></div>
+          <p class="max-w-sm text-sm leading-relaxed text-slate-500">Read, reflect, and share what strengthens your walk with Christ.</p>
+        </div>
+        <div class="mt-8 grid gap-7 md:grid-cols-2" data-blog-posts aria-live="polite">
+          <p class="empty-posts md:col-span-2">Loading articles…</p>
+        </div>
+      </div>
     </section>
   </main>
-  <footer class="border-t border-slate-200 py-9 text-center text-sm text-slate-500">© 2026 Sentinel Baptist Church</footer>
+
+  <footer class="border-t border-[#e6dfd2] bg-[#fffdf8] py-9 text-center text-sm text-slate-500">© 2026 Sentinel Baptist Church</footer>
   <script type="module" src="app.js?v=blog-20260723"></script>
 </body>
 </html>
