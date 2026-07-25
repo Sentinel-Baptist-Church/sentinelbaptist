@@ -5,6 +5,15 @@ const supabase = createClient(
   'sb_publishable_K0Vjk1VX7PTU3r21He4IoA_EhGhNHFV'
 );
 
+let passwordRecoveryMode = window.location.hash.includes('type=recovery')
+  || new URLSearchParams(window.location.search).get('type') === 'recovery';
+
+supabase.auth.onAuthStateChange((event) => {
+  if (event !== 'PASSWORD_RECOVERY') return;
+  passwordRecoveryMode = true;
+  if (document.getElementById('portal-content')) renderPortal();
+});
+
 const byId = (id) => document.getElementById(id);
 const message = (text, type = 'success') => {
   const target = byId('portal-message') || document.querySelector('[data-contact-status]');
@@ -263,6 +272,7 @@ async function updatePassword(event) {
   setFormLoading(form, false);
   if (error) return formFeedback(form, friendlyAuthMessage(error), 'error');
   window.history.replaceState({}, document.title, new URL('portal.html', window.location.href).toString());
+  passwordRecoveryMode = false;
   formFeedback(form, 'Your password has been updated. Taking you to your portal…', 'success');
   window.setTimeout(() => renderPortal(), 700);
 }
@@ -768,7 +778,7 @@ function renderPublicPortal() {
 async function renderPortal() {
   if (!byId('portal-content')) return;
   const { data: { user } } = await supabase.auth.getUser();
-  if (window.location.hash.includes('type=recovery')) {
+  if (passwordRecoveryMode) {
     portalShell('Choose a new password', `<section class="card auth-card"><p class="eyebrow">Password recovery</p><h2>Set a new password</h2><p class="text-slate-600">Choose a secure password with at least 8 characters.</p><form id="update-password-form"><label class="field-label">New password<input name="password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required></label><label class="field-label">Confirm new password<input name="confirm_password" type="password" autocomplete="new-password" minlength="8" placeholder="Enter it again" required></label><button class="auth-submit">Save new password</button></form></section>`);
     byId('update-password-form').addEventListener('submit', updatePassword);
     addPasswordVisibilityToggles(byId('update-password-form'));
