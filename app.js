@@ -216,6 +216,34 @@ async function login(event) {
   await renderPortal();
 }
 
+async function requestPasswordReset(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  formFeedback(form, '');
+  setFormLoading(form, true, 'Sending reset link…');
+  const email = new FormData(form).get('email');
+  const redirectTo = new URL('portal.html', window.location.href).toString();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  setFormLoading(form, false);
+  if (error) return formFeedback(form, friendlyAuthMessage(error), 'error');
+  formFeedback(form, 'If an account exists for that email, we have sent a password-reset link. Please check your inbox and spam folder.', 'success');
+}
+
+async function updatePassword(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = Object.fromEntries(new FormData(form));
+  if (values.password !== values.confirm_password) return formFeedback(form, 'The two passwords do not match. Please try again.', 'error');
+  formFeedback(form, '');
+  setFormLoading(form, true, 'Saving new password…');
+  const { error } = await supabase.auth.updateUser({ password: values.password });
+  setFormLoading(form, false);
+  if (error) return formFeedback(form, friendlyAuthMessage(error), 'error');
+  window.history.replaceState({}, document.title, new URL('portal.html', window.location.href).toString());
+  formFeedback(form, 'Your password has been updated. Taking you to your portal…', 'success');
+  window.setTimeout(() => renderPortal(), 700);
+}
+
 async function approveMember(id, status) {
   const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase.from('profiles').update({
@@ -348,7 +376,15 @@ function openContentEditor(kind, item, onSaved) {
   const publishedLabel = document.createElement('label'); publishedLabel.className = 'check';
   const published = document.createElement('input'); published.type = 'checkbox'; published.name = 'published'; published.checked = item.published;
   publishedLabel.append(published, document.createTextNode(' Publish this content')); form.append(publishedLabel);
-  const note = document.createElement('p'); note.className = 'section-help'; note.textContent = 'The featured image remains unchanged when editing.';
+  if (item.image_path) {
+    const { data: imageUrl } = supabase.storage.from('event-images').getPublicUrl(item.image_path);
+    const preview = document.createElement('img'); preview.src = imageUrl.publicUrl; preview.alt = `Current image for ${item.title}`; preview.className = 'w-full max-h-56 object-cover rounded-xl border border-slate-200';
+    form.append(preview);
+  }
+  const imageLabel = document.createElement('label'); imageLabel.className = 'field-label'; imageLabel.textContent = item.image_path ? 'Replace featured image (optional)' : 'Add a featured image (optional)';
+  const imageInput = document.createElement('input'); imageInput.type = 'file'; imageInput.name = 'image'; imageInput.accept = 'image/jpeg,image/png,image/webp';
+  imageLabel.append(imageInput); form.append(imageLabel);
+  const note = document.createElement('p'); note.className = 'section-help'; note.textContent = item.image_path ? 'Choose a new image only if you want to replace the current one.' : 'You can add an image now or leave this blank.';
   form.append(note);
   const feedback = document.createElement('p'); feedback.className = 'form-feedback'; feedback.dataset.formFeedback = ''; form.append(feedback);
   const save = document.createElement('button'); save.type = 'submit'; save.textContent = 'Save changes'; form.append(save);
@@ -361,9 +397,25 @@ function openContentEditor(kind, item, onSaved) {
       : { title: values.title.trim(), description: values.description.trim(), location: values.location.trim() || null, starts_at: new Date(values.starts_at).toISOString(), published: values.published === 'on' };
     if (isBlog && payload.published && !item.published) payload.published_at = new Date().toISOString();
     setFormLoading(form, true, 'Saving changes…');
+    const replacementImage = imageInput.files[0];
+    let uploadedImagePath = null;
+    if (replacementImage) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const safeName = replacementImage.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+      uploadedImagePath = isBlog
+        ? `${user.id}/blogs/${crypto.randomUUID()}-${safeName}`
+        : `${user.id}/${crypto.randomUUID()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from('event-images').upload(uploadedImagePath, replacementImage, { contentType: replacementImage.type });
+      if (uploadError) { setFormLoading(form, false); return formFeedback(form, uploadError.message, 'error'); }
+      payload.image_path = uploadedImagePath;
+    }
     const { error } = await supabase.from(isBlog ? 'blog_posts' : 'events').update(payload).eq('id', item.id);
     setFormLoading(form, false);
-    if (error) return formFeedback(form, error.message, 'error');
+    if (error) {
+      if (uploadedImagePath) await supabase.storage.from('event-images').remove([uploadedImagePath]);
+      return formFeedback(form, error.message, 'error');
+    }
+    if (uploadedImagePath && item.image_path) await supabase.storage.from('event-images').remove([item.image_path]);
     close(); message('Content updated.'); await onSaved();
   });
   backdrop.append(panel); backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); }); document.body.append(backdrop);
@@ -618,17 +670,36 @@ function renderPublicPortal() {
   modal.id = 'login-modal';
   modal.innerHTML = '<section class="login-modal-card" role="dialog" aria-modal="true" aria-labelledby="login-modal-title"><button type="button" class="modal-close" id="close-login" aria-label="Close sign in">×</button><p class="eyebrow">Welcome back</p><h2 id="login-modal-title">Sign in</h2><p>Use your email and password to access your member portal.</p><form id="modal-login-form"><label class="field-label">Email address<input name="email" type="email" autocomplete="email" placeholder="you@example.com" required></label><label class="field-label">Password<input name="password" type="password" autocomplete="current-password" placeholder="Your password" required></label><button class="auth-submit">Sign in securely</button></form></section>';
   document.body.append(modal);
+  const loginForm = byId('modal-login-form');
+  loginForm.insertAdjacentHTML('beforeend', '<button type="button" id="show-reset-request" class="text-button auth-help-link">Forgot your password?</button>');
+  loginForm.insertAdjacentHTML('afterend', '<form id="reset-request-form" hidden><p class="eyebrow">Password recovery</p><h2>Reset your password</h2><p>Enter your email and we will send a secure reset link.</p><label class="field-label">Email address<input name="email" type="email" autocomplete="email" placeholder="you@example.com" required></label><button class="auth-submit">Email reset link</button><button type="button" id="show-login" class="text-button auth-help-link">Back to sign in</button></form>');
   const closeModal = () => { modal.classList.remove('open'); byId('modal-login-form')?.reset(); formFeedback(byId('modal-login-form'), ''); };
   byId('open-login').addEventListener('click', () => { modal.classList.add('open'); modal.querySelector('input')?.focus(); });
   byId('close-login').addEventListener('click', closeModal);
   modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
   modal.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeModal(); });
   byId('modal-login-form').addEventListener('submit', login);
+  byId('reset-request-form').addEventListener('submit', requestPasswordReset);
+  byId('show-reset-request').addEventListener('click', () => {
+    byId('modal-login-form').hidden = true;
+    byId('reset-request-form').hidden = false;
+    byId('reset-request-form input')?.focus();
+  });
+  byId('show-login').addEventListener('click', () => {
+    byId('reset-request-form').hidden = true;
+    byId('modal-login-form').hidden = false;
+    byId('modal-login-form input')?.focus();
+  });
 }
 
 async function renderPortal() {
   if (!byId('portal-content')) return;
   const { data: { user } } = await supabase.auth.getUser();
+  if (window.location.hash.includes('type=recovery')) {
+    portalShell('Choose a new password', `<section class="card auth-card"><p class="eyebrow">Password recovery</p><h2>Set a new password</h2><p class="text-slate-600">Choose a secure password with at least 8 characters.</p><form id="update-password-form"><label class="field-label">New password<input name="password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required></label><label class="field-label">Confirm new password<input name="confirm_password" type="password" autocomplete="new-password" minlength="8" placeholder="Enter it again" required></label><button class="auth-submit">Save new password</button></form></section>`);
+    byId('update-password-form').addEventListener('submit', updatePassword);
+    return;
+  }
   if (!user) {
     renderPublicPortal();
     return;
