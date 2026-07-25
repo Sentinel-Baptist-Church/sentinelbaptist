@@ -270,7 +270,7 @@ async function updatePassword(event) {
 async function approveMember(id, status) {
   const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase.from('profiles').update({
-    membership_status: status, reviewed_at: new Date().toISOString(), reviewed_by: user.id
+    membership_status: status, role: status === 'approved' ? 'member' : 'non_member', reviewed_at: new Date().toISOString(), reviewed_by: user.id
   }).eq('id', id);
   if (error) return message(error.message, 'error');
   await renderPortal();
@@ -542,6 +542,7 @@ function openMemberEditor(member) {
     if (table === 'profiles' && !payload.email) { setFormLoading(form, false); return formFeedback(form, 'An online member record must have an email address.', 'error'); }
     if (table === 'profiles' && values.membership_status !== member.membership_status) {
       const { data: { user } } = await supabase.auth.getUser(); payload.reviewed_at = new Date().toISOString(); payload.reviewed_by = user.id;
+      if (member.role !== 'admin') payload.role = values.membership_status === 'approved' ? 'member' : 'non_member';
     }
     const { data, error } = await supabase.from(table).update(payload).eq('id', member.id).select('id').maybeSingle();
     setFormLoading(form, false);
@@ -610,11 +611,53 @@ const eventForm = () => `<section class="card form-card"><p class="eyebrow">Chur
 
 const blogForm = () => `<section class="card form-card"><p class="eyebrow">Church blog</p><h2>Write an article</h2><p class="text-slate-600">Publish biblical encouragement, church news, or a resource for the congregation.</p><form id="blog-form"><label class="field-label">Article title<input name="title" placeholder="e.g. Growing together in grace" required></label><label class="field-label">Short introduction<input name="excerpt" placeholder="A brief summary readers see first" maxlength="500" required></label><label class="field-label">Article content<textarea name="content" placeholder="Write the full article here…" required></textarea></label><label class="field-label">Featured image (optional)<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><div class="form-actions"><button>Save article</button></div></form></section>`;
 
-async function renderStaffDashboard(role) {
-  const canManageMembers = ['staff', 'admin', 'pastor', 'membership'].includes(role);
-  const canManageEvents = ['staff', 'admin', 'events'].includes(role);
+async function renderApprovedMemberDirectory() {
   const area = byId('staff-area');
-  area.innerHTML = `<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church administration</p><h2>Staff dashboard</h2><p>Manage the areas assigned to your role.</p></div></div><nav class="dashboard-nav" aria-label="Staff dashboard"><button class="nav-link" data-page="overview">Overview</button>${canManageMembers ? '<button class="nav-link" data-page="members">Members</button><button class="nav-link" data-page="add-member">Add member</button>' : ''}${canManageEvents ? '<button class="nav-link" data-page="events">Events</button><button class="nav-link" data-page="blog">Blog</button>' : ''}</nav><div id="dashboard-page" class="dashboard-page"></div></section>`;
+  area.innerHTML = '<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church family</p><h2>Approved members</h2><p>This directory shows approved members only.</p></div></div><section class="card"><div id="approved-member-directory" class="member-list">Loading members…</div></section></section>';
+  const container = byId('approved-member-directory');
+  const { data, error } = await supabase.rpc('get_approved_member_directory');
+  if (error) { container.textContent = 'The approved member directory is not available yet. Please refresh shortly.'; return; }
+  if (!data?.length) { container.innerHTML = '<p class="empty-state">No approved members are listed yet.</p>'; return; }
+  container.replaceChildren();
+  for (const member of data) {
+    const card = document.createElement('article'); card.className = 'member-card';
+    const name = document.createElement('h3'); name.textContent = member.full_name || 'Unnamed member';
+    const source = document.createElement('p'); source.className = 'member-meta'; source.textContent = member.source;
+    card.append(name, source); container.append(card);
+  }
+}
+
+async function renderRoleManager(container) {
+  const { data, error } = await supabase.from('profiles').select('id,full_name,email,role,membership_status').order('full_name');
+  if (error) { container.textContent = 'Could not load portal roles. Please refresh and try again.'; return; }
+  container.replaceChildren();
+  for (const profile of data || []) {
+    const card = document.createElement('article'); card.className = 'member-card';
+    const details = document.createElement('div');
+    const name = document.createElement('h4'); name.textContent = profile.full_name || profile.email;
+    const meta = document.createElement('p'); meta.className = 'member-meta'; meta.textContent = `${profile.email} · ${profile.membership_status}`;
+    details.append(name, meta);
+    const actions = document.createElement('div'); actions.className = 'member-actions';
+    const currentRole = ['admin', 'member', 'non_member'].includes(profile.role) ? profile.role : 'non_member';
+    const select = document.createElement('select'); select.setAttribute('aria-label', `Portal role for ${profile.full_name || profile.email}`);
+    [['admin', 'Admin — full access'], ['member', 'Member — approved directory'], ['non_member', 'Non-member — own status only']].forEach(([value, label]) => select.append(new Option(label, value, false, currentRole === value)));
+    const save = document.createElement('button'); save.textContent = 'Save role';
+    save.onclick = async () => {
+      if (!window.confirm(`Change ${profile.full_name || profile.email}'s role to ${select.options[select.selectedIndex].text}?`)) return;
+      save.disabled = true; save.textContent = 'Saving…';
+      const { error: roleError } = await supabase.rpc('set_portal_role', { target_user_id: profile.id, new_role: select.value });
+      if (roleError) { message(roleError.message, 'error'); save.disabled = false; save.textContent = 'Save role'; return; }
+      message('Portal role updated.'); await renderRoleManager(container);
+    };
+    actions.append(select, save); card.append(details, actions); container.append(card);
+  }
+}
+
+async function renderStaffDashboard(role) {
+  const canManageMembers = role === 'admin';
+  const canManageEvents = role === 'admin';
+  const area = byId('staff-area');
+  area.innerHTML = `<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church administration</p><h2>Admin dashboard</h2><p>Manage members, content, and portal permissions.</p></div></div><nav class="dashboard-nav" aria-label="Admin dashboard"><button class="nav-link" data-page="overview">Overview</button><button class="nav-link" data-page="members">Members</button><button class="nav-link" data-page="add-member">Add member</button><button class="nav-link" data-page="events">Events</button><button class="nav-link" data-page="blog">Blog</button><button class="nav-link" data-page="roles">Roles</button></nav><div id="dashboard-page" class="dashboard-page"></div></section>`;
   const showPage = async (pageName) => {
     document.querySelectorAll('.nav-link').forEach((button) => button.classList.toggle('active', button.dataset.page === pageName));
     const page = byId('dashboard-page');
@@ -640,7 +683,12 @@ async function renderStaffDashboard(role) {
       await renderContentManager('blog', byId('blog-manager'));
       return;
     }
-    if (!canManageMembers) { page.innerHTML = '<section class="card"><p class="eyebrow">Your role</p><h2>Events Editor</h2><p class="text-slate-600">You can create and manage church events. Membership records are protected and are not available to this role.</p><div class="quick-actions"><button data-go="events">Create an event</button></div></section>'; page.querySelector('[data-go]').onclick = () => showPage('events'); return; }
+    if (pageName === 'roles') {
+      page.innerHTML = '<section class="card"><p class="eyebrow">Authority and access</p><h2>Portal roles</h2><p class="text-slate-600">Admins have full access. Approved members can view the member directory. Non-members can see only their own application status.</p><div id="role-manager" class="member-list mt-6">Loading roles…</div></section>';
+      await renderRoleManager(byId('role-manager'));
+      return;
+    }
+    if (!canManageMembers) { page.innerHTML = '<section class="card"><p class="eyebrow">Your role</p><h2>Portal access</h2><p class="text-slate-600">Your account has limited portal access.</p></section>'; return; }
     page.innerHTML = `<section class="card"><p class="eyebrow">At a glance</p><h2>Membership overview</h2><div id="overview-stats" class="stat-grid"><p class="empty-state">Loading membership totals…</p></div><div class="quick-actions"><button class="outline" data-go="members">View member register</button><button data-go="add-member">Add a member</button>${canManageEvents ? '<button class="secondary" data-go="events">Create an event</button>' : ''}</div></section>`;
     const [{ data: applications }, { data: manualMembers }] = await Promise.all([
       supabase.from('profiles').select('membership_status'),
@@ -741,11 +789,12 @@ async function renderPortal() {
   }
   const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
   if (error) return message('Your profile is still being prepared. Please refresh shortly.', 'error');
-  const staff = ['staff', 'admin', 'pastor', 'membership', 'events'].includes(profile.role);
+  const isAdmin = profile.role === 'admin';
+  const isApprovedMember = profile.role === 'member' && profile.membership_status === 'approved';
   portalShell(`Welcome, ${profile.full_name || user.email}`, `<p class="text-slate-600 mb-4">Membership status: <strong class="capitalize">${profile.membership_status}</strong></p><button id="sign-out" class="secondary">Sign out</button><div id="staff-area" class="mt-8"></div>`);
   byId('sign-out').addEventListener('click', async () => { await supabase.auth.signOut(); await renderPortal(); });
-  if (!staff) return;
-  await renderStaffDashboard(profile.role);
+  if (isAdmin) { await renderStaffDashboard(profile.role); return; }
+  if (isApprovedMember) { await renderApprovedMemberDirectory(); return; }
   return;
   const area = byId('staff-area');
   area.innerHTML = `<h2 class="text-2xl font-bold mt-8">Staff dashboard</h2><div class="grid lg:grid-cols-2 gap-8 mt-5"><section class="card"><h3>Add a member manually</h3><p class="text-sm text-slate-600">Manual entries are approved immediately and do not need an online account.</p><form id="manual-member-form"><input name="full_name" placeholder="Full name" required><input name="email" type="email" placeholder="Email (optional)"><input name="phone" placeholder="Phone number"><input name="date_of_birth" type="date"><select name="gender"><option value="">Gender</option><option>Female</option><option>Male</option></select><select name="marital_status"><option value="">Marital status</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select><input name="spouse_name" placeholder="Spouse name"><input name="children_count" type="number" min="0" placeholder="Number of children"><input name="occupation" placeholder="Occupation"><textarea name="address" placeholder="Home address"></textarea><select name="baptized"><option value="">Baptized?</option><option value="true">Yes</option><option value="false">No</option></select><input name="baptism_church" placeholder="Church where baptized"><select name="previous_membership"><option value="">Previous church membership?</option><option value="true">Yes</option><option value="false">No</option></select><input name="previous_church" placeholder="Previous church"><textarea name="salvation_story" placeholder="Salvation story / testimony"></textarea><textarea name="pastoral_notes" placeholder="Private pastoral notes"></textarea><fieldset><legend>Ministry interests</legend><label class="check"><input name="ministry_interests" type="checkbox" value="Children"> Children</label><label class="check"><input name="ministry_interests" type="checkbox" value="Youth"> Youth</label><label class="check"><input name="ministry_interests" type="checkbox" value="Music"> Music</label><label class="check"><input name="ministry_interests" type="checkbox" value="Evangelism"> Evangelism</label></fieldset><input name="emergency_contact_name" placeholder="Emergency contact name"><input name="emergency_contact_phone" placeholder="Emergency contact phone"><button>Add approved member</button></form></section><section class="card"><h3>Publish an event</h3><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><input name="starts_at" type="datetime-local" required><input name="image" type="file" accept="image/jpeg,image/png,image/webp"><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><button>Save event</button></form></section></div><section class="card mt-8"><h3>Membership register</h3><label>Filter members<select id="member-filter"><option value="all">All members and applications</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="declined">Declined</option></select></label><div id="member-list">Loading…</div></section>`;
