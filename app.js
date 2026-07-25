@@ -86,6 +86,29 @@ const addVisibleFieldLabels = (form) => {
   });
 };
 
+const addPasswordVisibilityToggles = (scope = document) => {
+  scope.querySelectorAll('input[type="password"]').forEach((input) => {
+    if (input.dataset.visibilityToggle) return;
+    input.dataset.visibilityToggle = 'true';
+    const control = document.createElement('span');
+    control.className = 'password-control';
+    input.parentNode.insertBefore(control, input);
+    control.append(input);
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'password-toggle';
+    toggle.textContent = 'Show';
+    toggle.setAttribute('aria-label', 'Show password');
+    toggle.addEventListener('click', () => {
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      toggle.textContent = showing ? 'Show' : 'Hide';
+      toggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    });
+    control.append(toggle);
+  });
+};
+
 const formatDate = (value) => new Intl.DateTimeFormat('en-ZM', {
   dateStyle: 'medium', timeStyle: 'short'
 }).format(new Date(value));
@@ -654,6 +677,7 @@ function renderPublicPortal() {
   const signInForm = byId('login-form');
   const registrationForm = byId('register-form');
   addVisibleFieldLabels(registrationForm);
+  addPasswordVisibilityToggles(registrationForm);
   const requiredNote = document.createElement('p');
   requiredNote.className = 'required-note';
   requiredNote.innerHTML = '<span aria-hidden="true">*</span> Required fields';
@@ -673,6 +697,7 @@ function renderPublicPortal() {
   const loginForm = byId('modal-login-form');
   loginForm.insertAdjacentHTML('beforeend', '<button type="button" id="show-reset-request" class="text-button auth-help-link">Forgot your password?</button>');
   loginForm.insertAdjacentHTML('afterend', '<form id="reset-request-form" hidden><p class="eyebrow">Password recovery</p><h2>Reset your password</h2><p>Enter your email and we will send a secure reset link.</p><label class="field-label">Email address<input name="email" type="email" autocomplete="email" placeholder="you@example.com" required></label><button class="auth-submit">Email reset link</button><button type="button" id="show-login" class="text-button auth-help-link">Back to sign in</button></form>');
+  addPasswordVisibilityToggles(modal);
   const closeModal = () => { modal.classList.remove('open'); byId('modal-login-form')?.reset(); formFeedback(byId('modal-login-form'), ''); };
   byId('open-login').addEventListener('click', () => { modal.classList.add('open'); modal.querySelector('input')?.focus(); });
   byId('close-login').addEventListener('click', closeModal);
@@ -698,6 +723,7 @@ async function renderPortal() {
   if (window.location.hash.includes('type=recovery')) {
     portalShell('Choose a new password', `<section class="card auth-card"><p class="eyebrow">Password recovery</p><h2>Set a new password</h2><p class="text-slate-600">Choose a secure password with at least 8 characters.</p><form id="update-password-form"><label class="field-label">New password<input name="password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required></label><label class="field-label">Confirm new password<input name="confirm_password" type="password" autocomplete="new-password" minlength="8" placeholder="Enter it again" required></label><button class="auth-submit">Save new password</button></form></section>`);
     byId('update-password-form').addEventListener('submit', updatePassword);
+    addPasswordVisibilityToggles(byId('update-password-form'));
     return;
   }
   if (!user) {
