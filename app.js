@@ -547,6 +547,19 @@ function openMemberEditor(member) {
   const statusLabel = document.createElement('label'); statusLabel.className = 'field-label'; statusLabel.textContent = 'Membership status';
   const status = document.createElement('select'); status.name = 'membership_status'; ['pending', 'approved', 'declined'].forEach((value) => { const option = new Option(value[0].toUpperCase() + value.slice(1), value, false, member.membership_status === value); status.append(option); });
   statusLabel.append(status); form.append(statusLabel);
+  let portraitInput = null;
+  if (member.source === 'Online application') {
+    if (member.portrait_path) {
+      supabase.storage.from('member-portraits').createSignedUrl(member.portrait_path, 300).then(({ data }) => {
+        if (!data?.signedUrl) return;
+        const image = document.createElement('img'); image.src = data.signedUrl; image.alt = `${member.full_name || 'Member'}'s current portrait`; image.className = 'h-28 w-28 rounded-full object-cover border-4 border-white shadow-md';
+        form.insertBefore(image, feedback);
+      });
+    }
+    const portraitLabel = document.createElement('label'); portraitLabel.className = 'field-label'; portraitLabel.textContent = member.portrait_path ? 'Replace portrait photo (optional)' : 'Add portrait photo (optional)';
+    portraitInput = document.createElement('input'); portraitInput.type = 'file'; portraitInput.name = 'portrait'; portraitInput.accept = 'image/jpeg,image/png,image/webp';
+    portraitLabel.append(portraitInput); form.append(portraitLabel);
+  }
   const feedback = document.createElement('p'); feedback.className = 'form-feedback'; feedback.dataset.formFeedback = ''; form.append(feedback);
   const save = document.createElement('button'); save.textContent = 'Save changes'; save.type = 'submit'; form.append(save);
   const close = () => backdrop.remove(); panel.querySelector('button').onclick = close;
@@ -555,15 +568,29 @@ function openMemberEditor(member) {
     const values = Object.fromEntries(new FormData(form));
     const table = member.source === 'Staff entry' ? 'manual_members' : 'profiles';
     const payload = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, typeof value === 'string' ? value.trim() || null : value]));
+    delete payload.portrait;
     if (!payload.full_name) { setFormLoading(form, false); return formFeedback(form, 'A member name is required.', 'error'); }
     if (table === 'profiles' && !payload.email) { setFormLoading(form, false); return formFeedback(form, 'An online member record must have an email address.', 'error'); }
     if (table === 'profiles' && values.membership_status !== member.membership_status) {
       const { data: { user } } = await supabase.auth.getUser(); payload.reviewed_at = new Date().toISOString(); payload.reviewed_by = user.id;
       if (member.role !== 'admin') payload.role = values.membership_status === 'approved' ? 'member' : 'non_member';
     }
+    const replacementPortrait = portraitInput?.files[0];
+    let uploadedPortraitPath = null;
+    if (replacementPortrait) {
+      const safeName = replacementPortrait.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+      uploadedPortraitPath = `${member.id}/${crypto.randomUUID()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from('member-portraits').upload(uploadedPortraitPath, replacementPortrait, { contentType: replacementPortrait.type });
+      if (uploadError) { setFormLoading(form, false); return formFeedback(form, uploadError.message, 'error'); }
+      payload.portrait_path = uploadedPortraitPath;
+    }
     const { data, error } = await supabase.from(table).update(payload).eq('id', member.id).select('id').maybeSingle();
     setFormLoading(form, false);
-    if (error || !data) return formFeedback(form, `Could not save changes: ${error?.message || 'You do not have permission to update this record.'}`, 'error');
+    if (error || !data) {
+      if (uploadedPortraitPath) await supabase.storage.from('member-portraits').remove([uploadedPortraitPath]);
+      return formFeedback(form, `Could not save changes: ${error?.message || 'You do not have permission to update this record.'}`, 'error');
+    }
+    if (uploadedPortraitPath && member.portrait_path) await supabase.storage.from('member-portraits').remove([member.portrait_path]);
     close(); message('Member record updated.'); await renderPortal();
   });
   backdrop.append(panel); backdrop.addEventListener('click', (event) => { if (event.target === backdrop) close(); }); document.body.append(backdrop);
