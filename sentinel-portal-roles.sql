@@ -67,7 +67,7 @@ begin
     raise exception 'Approved members only';
   end if;
   return query
-  select directory.id, directory.full_name, directory.source
+  select directory.id, directory.full_name, directory.source, directory.portrait_path
   from (
     select p.id, p.full_name, 'Online member'::text as source, p.portrait_path
     from public.profiles p where p.membership_status = 'approved'
