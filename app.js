@@ -673,7 +673,7 @@ async function uploadMyPortrait(event) {
 
 async function renderApprovedMemberDirectory(profile) {
   const area = byId('staff-area');
-  area.innerHTML = '<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church family</p><h2>Approved members</h2><p>This directory shows approved members only.</p></div></div><section class="card"><p class="eyebrow">Your profile</p><h3 class="text-xl font-bold">Private portrait</h3><p class="text-slate-600">Your portrait is visible to you and church administrators only; it is never shown in the member directory.</p><div id="portrait-preview" class="mt-4"></div><form id="portrait-form" class="mt-4"><label class="field-label">Upload a portrait photo<input name="portrait" type="file" accept="image/jpeg,image/png,image/webp" required></label><button>Save portrait</button></form></section><section class="card mt-6"><div id="approved-member-directory" class="member-list">Loading members…</div></section></section>';
+  area.innerHTML = '<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church family</p><h2>Approved members</h2><p>Names and portraits are shared with approved members only.</p></div></div><section class="card"><p class="eyebrow">Your profile</p><h3 class="text-xl font-bold">Your portrait</h3><p class="text-slate-600">Your portrait appears with your name in the private member directory. Contact and personal information remain private.</p><div id="portrait-preview" class="mt-4"></div><form id="portrait-form" class="mt-4"><label class="field-label">Upload a portrait photo<input name="portrait" type="file" accept="image/jpeg,image/png,image/webp" required></label><button>Save portrait</button></form></section><section class="card mt-6"><p class="eyebrow">Our church family</p><h3 class="text-xl font-bold">Member directory</h3><div id="approved-member-directory" class="member-directory mt-5">Loading members…</div></section></section>';
   if (profile.portrait_path) {
     const { data: signed } = await supabase.storage.from('member-portraits').createSignedUrl(profile.portrait_path, 300);
     if (signed?.signedUrl) {
@@ -688,16 +688,18 @@ async function renderApprovedMemberDirectory(profile) {
   if (!data?.length) { container.innerHTML = '<p class="empty-state">No approved members are listed yet.</p>'; return; }
   container.replaceChildren();
   for (const member of data) {
-    const card = document.createElement('article'); card.className = 'member-card';
+    const card = document.createElement('article'); card.className = 'directory-card';
+    const portrait = document.createElement('div'); portrait.className = 'directory-portrait';
     if (member.portrait_path) {
       const { data: signed } = await supabase.storage.from('member-portraits').createSignedUrl(member.portrait_path, 300);
       if (signed?.signedUrl) {
-        const image = document.createElement('img'); image.src = signed.signedUrl; image.alt = `${member.full_name}'s portrait`; image.className = 'h-16 w-16 rounded-full object-cover border-2 border-[#d7b36d] shadow-sm';
-        card.append(image);
+        const image = document.createElement('img'); image.src = signed.signedUrl; image.alt = `${member.full_name}'s portrait`;
+        portrait.append(image);
       }
     }
-    const name = document.createElement('h3'); name.textContent = member.full_name || 'Unnamed member';
-    card.append(name); container.append(card);
+    if (!portrait.childElementCount) portrait.textContent = (member.full_name || '?').trim().slice(0, 1).toUpperCase();
+    const name = document.createElement('h3'); name.className = 'directory-name'; name.textContent = member.full_name || 'Unnamed member';
+    card.append(portrait, name); container.append(card);
   }
 }
 
