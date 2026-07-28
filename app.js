@@ -485,7 +485,7 @@ const displayValue = (value) => {
   return String(value);
 };
 
-function openMemberDetails(member) {
+async function openMemberDetails(member) {
   const backdrop = document.createElement('div');
   backdrop.className = 'detail-backdrop';
   backdrop.setAttribute('role', 'dialog');
@@ -500,6 +500,13 @@ function openMemberDetails(member) {
   heading.append(name, labels);
   const close = document.createElement('button'); close.className = 'secondary'; close.textContent = 'Close'; close.onclick = () => backdrop.remove();
   header.append(heading, close); panel.append(header);
+  if (member.portrait_path) {
+    const { data: signed } = await supabase.storage.from('member-portraits').createSignedUrl(member.portrait_path, 300);
+    if (signed?.signedUrl) {
+      const image = document.createElement('img'); image.src = signed.signedUrl; image.alt = `${member.full_name || 'Member'}'s portrait`; image.className = 'mt-5 h-36 w-36 rounded-full object-cover border-4 border-white shadow-md';
+      panel.append(image);
+    }
+  }
   const sections = [
     ['Contact and family', [['Email', 'email'], ['Phone', 'phone'], ['Date of birth', 'date_of_birth'], ['Gender', 'gender'], ['Marital status', 'marital_status'], ['Spouse', 'spouse_name'], ['Children', 'children_count'], ['Occupation', 'occupation'], ['Home address', 'address']]],
     ['Church background', [['Baptized after profession of faith', 'baptized'], ['Baptism date', 'baptism_date'], ['Baptism church', 'baptism_church'], ['Previous membership', 'previous_membership'], ['Previous church', 'previous_church'], ['Transfer requested', 'transfer_requested'], ['Reason for leaving / transfer', 'previous_membership_reason'], ['Ministry interests', 'ministry_interests']]],
@@ -657,9 +664,15 @@ async function renderApprovedMemberDirectory(profile) {
   container.replaceChildren();
   for (const member of data) {
     const card = document.createElement('article'); card.className = 'member-card';
+    if (member.portrait_path) {
+      const { data: signed } = await supabase.storage.from('member-portraits').createSignedUrl(member.portrait_path, 300);
+      if (signed?.signedUrl) {
+        const image = document.createElement('img'); image.src = signed.signedUrl; image.alt = `${member.full_name}'s portrait`; image.className = 'h-16 w-16 rounded-full object-cover border-2 border-[#d7b36d] shadow-sm';
+        card.append(image);
+      }
+    }
     const name = document.createElement('h3'); name.textContent = member.full_name || 'Unnamed member';
-    const source = document.createElement('p'); source.className = 'member-meta'; source.textContent = member.source;
-    card.append(name, source); container.append(card);
+    card.append(name); container.append(card);
   }
 }
 
