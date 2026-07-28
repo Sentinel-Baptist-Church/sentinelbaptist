@@ -621,9 +621,35 @@ const eventForm = () => `<section class="card form-card"><p class="eyebrow">Chur
 
 const blogForm = () => `<section class="card form-card"><p class="eyebrow">Church blog</p><h2>Write an article</h2><p class="text-slate-600">Publish biblical encouragement, church news, or a resource for the congregation.</p><form id="blog-form"><label class="field-label">Article title<input name="title" placeholder="e.g. Growing together in grace" required></label><label class="field-label">Short introduction<input name="excerpt" placeholder="A brief summary readers see first" maxlength="500" required></label><label class="field-label">Article content<textarea name="content" placeholder="Write the full article here…" required></textarea></label><label class="field-label">Featured image (optional)<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><div class="form-actions"><button>Save article</button></div></form></section>`;
 
-async function renderApprovedMemberDirectory() {
+async function uploadMyPortrait(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const file = form.elements.portrait.files[0];
+  if (!file) return formFeedback(form, 'Please choose a portrait image first.', 'error');
+  const { data: { user } } = await supabase.auth.getUser();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const imagePath = `${user.id}/${crypto.randomUUID()}-${safeName}`;
+  setFormLoading(form, true, 'Uploading portrait…');
+  const { error: uploadError } = await supabase.storage.from('member-portraits').upload(imagePath, file, { contentType: file.type });
+  if (uploadError) { setFormLoading(form, false); return formFeedback(form, uploadError.message, 'error'); }
+  const { error: profileError } = await supabase.rpc('set_my_portrait', { new_path: imagePath });
+  setFormLoading(form, false);
+  if (profileError) { await supabase.storage.from('member-portraits').remove([imagePath]); return formFeedback(form, profileError.message, 'error'); }
+  formFeedback(form, 'Your portrait has been saved privately.', 'success');
+  await renderPortal();
+}
+
+async function renderApprovedMemberDirectory(profile) {
   const area = byId('staff-area');
-  area.innerHTML = '<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church family</p><h2>Approved members</h2><p>This directory shows approved members only.</p></div></div><section class="card"><div id="approved-member-directory" class="member-list">Loading members…</div></section></section>';
+  area.innerHTML = '<section class="dashboard-shell"><div class="dashboard-heading"><div><p class="eyebrow">Church family</p><h2>Approved members</h2><p>This directory shows approved members only.</p></div></div><section class="card"><p class="eyebrow">Your profile</p><h3 class="text-xl font-bold">Private portrait</h3><p class="text-slate-600">Your portrait is visible to you and church administrators only; it is never shown in the member directory.</p><div id="portrait-preview" class="mt-4"></div><form id="portrait-form" class="mt-4"><label class="field-label">Upload a portrait photo<input name="portrait" type="file" accept="image/jpeg,image/png,image/webp" required></label><button>Save portrait</button></form></section><section class="card mt-6"><div id="approved-member-directory" class="member-list">Loading members…</div></section></section>';
+  if (profile.portrait_path) {
+    const { data: signed } = await supabase.storage.from('member-portraits').createSignedUrl(profile.portrait_path, 300);
+    if (signed?.signedUrl) {
+      const image = document.createElement('img'); image.src = signed.signedUrl; image.alt = 'Your portrait'; image.className = 'h-28 w-28 rounded-full object-cover border-4 border-white shadow-md';
+      byId('portrait-preview').append(image);
+    }
+  }
+  byId('portrait-form').addEventListener('submit', uploadMyPortrait);
   const container = byId('approved-member-directory');
   const { data, error } = await supabase.rpc('get_approved_member_directory');
   if (error) { container.textContent = 'The approved member directory is not available yet. Please refresh shortly.'; return; }
@@ -804,7 +830,7 @@ async function renderPortal() {
   portalShell(`Welcome, ${profile.full_name || user.email}`, `<p class="text-slate-600 mb-4">Membership status: <strong class="capitalize">${profile.membership_status}</strong></p><button id="sign-out" class="secondary">Sign out</button><div id="staff-area" class="mt-8"></div>`);
   byId('sign-out').addEventListener('click', async () => { await supabase.auth.signOut(); await renderPortal(); });
   if (isAdmin) { await renderStaffDashboard(profile.role); return; }
-  if (isApprovedMember) { await renderApprovedMemberDirectory(); return; }
+  if (isApprovedMember) { await renderApprovedMemberDirectory(profile); return; }
   return;
   const area = byId('staff-area');
   area.innerHTML = `<h2 class="text-2xl font-bold mt-8">Staff dashboard</h2><div class="grid lg:grid-cols-2 gap-8 mt-5"><section class="card"><h3>Add a member manually</h3><p class="text-sm text-slate-600">Manual entries are approved immediately and do not need an online account.</p><form id="manual-member-form"><input name="full_name" placeholder="Full name" required><input name="email" type="email" placeholder="Email (optional)"><input name="phone" placeholder="Phone number"><input name="date_of_birth" type="date"><select name="gender"><option value="">Gender</option><option>Female</option><option>Male</option></select><select name="marital_status"><option value="">Marital status</option><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select><input name="spouse_name" placeholder="Spouse name"><input name="children_count" type="number" min="0" placeholder="Number of children"><input name="occupation" placeholder="Occupation"><textarea name="address" placeholder="Home address"></textarea><select name="baptized"><option value="">Baptized?</option><option value="true">Yes</option><option value="false">No</option></select><input name="baptism_church" placeholder="Church where baptized"><select name="previous_membership"><option value="">Previous church membership?</option><option value="true">Yes</option><option value="false">No</option></select><input name="previous_church" placeholder="Previous church"><textarea name="salvation_story" placeholder="Salvation story / testimony"></textarea><textarea name="pastoral_notes" placeholder="Private pastoral notes"></textarea><fieldset><legend>Ministry interests</legend><label class="check"><input name="ministry_interests" type="checkbox" value="Children"> Children</label><label class="check"><input name="ministry_interests" type="checkbox" value="Youth"> Youth</label><label class="check"><input name="ministry_interests" type="checkbox" value="Music"> Music</label><label class="check"><input name="ministry_interests" type="checkbox" value="Evangelism"> Evangelism</label></fieldset><input name="emergency_contact_name" placeholder="Emergency contact name"><input name="emergency_contact_phone" placeholder="Emergency contact phone"><button>Add approved member</button></form></section><section class="card"><h3>Publish an event</h3><form id="event-form"><input name="title" placeholder="Event title" required><textarea name="description" placeholder="Description" required></textarea><input name="location" placeholder="Location"><input name="starts_at" type="datetime-local" required><input name="image" type="file" accept="image/jpeg,image/png,image/webp"><label class="check"><input name="published" type="checkbox" checked> Publish immediately</label><button>Save event</button></form></section></div><section class="card mt-8"><h3>Membership register</h3><label>Filter members<select id="member-filter"><option value="all">All members and applications</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="declined">Declined</option></select></label><div id="member-list">Loading…</div></section>`;
