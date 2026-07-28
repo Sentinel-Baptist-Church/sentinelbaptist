@@ -97,14 +97,14 @@ drop policy if exists "Members upload own private portrait" on storage.objects;
 drop policy if exists "Members replace own private portrait" on storage.objects;
 drop policy if exists "Members remove own private portrait" on storage.objects;
 create policy "Approved members view member portraits" on storage.objects for select to authenticated
-using (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin() or public.is_approved_member()));
+using (bucket_id = 'member-portraits' and (owner_id = auth.uid()::text or public.is_admin() or public.is_approved_member()));
 create policy "Members upload own private portrait" on storage.objects for insert to authenticated
-with check (bucket_id = 'member-portraits' and owner_id = auth.uid());
+with check (bucket_id = 'member-portraits' and owner_id = auth.uid()::text);
 create policy "Members replace own private portrait" on storage.objects for update to authenticated
-using (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin()))
-with check (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin()));
+using (bucket_id = 'member-portraits' and (owner_id = auth.uid()::text or public.is_admin()))
+with check (bucket_id = 'member-portraits' and (owner_id = auth.uid()::text or public.is_admin()));
 create policy "Members remove own private portrait" on storage.objects for delete to authenticated
-using (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin()));
+using (bucket_id = 'member-portraits' and (owner_id = auth.uid()::text or public.is_admin()));
 
 create or replace function public.set_my_portrait(new_path text)
 returns void language plpgsql security definer set search_path = public
