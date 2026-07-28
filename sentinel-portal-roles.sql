@@ -52,8 +52,10 @@ grant execute on function public.set_portal_role(uuid, text) to authenticated;
 -- A safe directory: approved members may see names only, never contact or
 -- pastoral details. The function bypasses row-level security only to return
 -- these selected fields.
+alter table public.profiles add column if not exists portrait_path text;
+drop function if exists public.get_approved_member_directory();
 create or replace function public.get_approved_member_directory()
-returns table(id uuid, full_name text, source text)
+returns table(id uuid, full_name text, source text, portrait_path text)
 language plpgsql security definer set search_path = public
 as $$
 begin
@@ -67,10 +69,10 @@ begin
   return query
   select directory.id, directory.full_name, directory.source
   from (
-    select p.id, p.full_name, 'Online member'::text as source
+    select p.id, p.full_name, 'Online member'::text as source, p.portrait_path
     from public.profiles p where p.membership_status = 'approved'
     union all
-    select m.id, m.full_name, 'Church register'::text as source
+    select m.id, m.full_name, 'Church register'::text as source, null::text as portrait_path
     from public.manual_members m where m.membership_status = 'approved'
   ) directory
   order by directory.full_name;
@@ -79,15 +81,23 @@ $$;
 revoke all on function public.get_approved_member_directory() from public;
 grant execute on function public.get_approved_member_directory() to authenticated;
 
--- Private member portraits. They are never returned by the member directory.
-alter table public.profiles add column if not exists portrait_path text;
+-- Private member portraits. They are shared only inside the approved member directory.
+
+create or replace function public.is_approved_member()
+returns boolean language sql stable security definer set search_path = public
+as $$ select exists (select 1 from public.profiles where id = auth.uid() and membership_status = 'approved' and role in ('member', 'admin')) $$;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('member-portraits', 'member-portraits', false, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do nothing;
 
-create policy "Members read own private portrait" on storage.objects for select to authenticated
-using (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin()));
+drop policy if exists "Members read own private portrait" on storage.objects;
+drop policy if exists "Approved members view member portraits" on storage.objects;
+drop policy if exists "Members upload own private portrait" on storage.objects;
+drop policy if exists "Members replace own private portrait" on storage.objects;
+drop policy if exists "Members remove own private portrait" on storage.objects;
+create policy "Approved members view member portraits" on storage.objects for select to authenticated
+using (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin() or public.is_approved_member()));
 create policy "Members upload own private portrait" on storage.objects for insert to authenticated
 with check (bucket_id = 'member-portraits' and owner_id = auth.uid());
 create policy "Members replace own private portrait" on storage.objects for update to authenticated
