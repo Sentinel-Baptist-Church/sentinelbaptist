@@ -53,6 +53,7 @@ grant execute on function public.set_portal_role(uuid, text) to authenticated;
 -- pastoral details. The function bypasses row-level security only to return
 -- these selected fields.
 alter table public.profiles add column if not exists portrait_path text;
+alter table public.manual_members add column if not exists portrait_path text;
 drop function if exists public.get_approved_member_directory();
 create or replace function public.get_approved_member_directory()
 returns table(id uuid, full_name text, source text, portrait_path text)
@@ -72,7 +73,7 @@ begin
     select p.id, p.full_name, 'Online member'::text as source, p.portrait_path
     from public.profiles p where p.membership_status = 'approved'
     union all
-    select m.id, m.full_name, 'Church register'::text as source, null::text as portrait_path
+    select m.id, m.full_name, 'Church register'::text as source, m.portrait_path
     from public.manual_members m where m.membership_status = 'approved'
   ) directory
   order by directory.full_name;
