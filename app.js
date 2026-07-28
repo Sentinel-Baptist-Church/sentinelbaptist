@@ -548,18 +548,16 @@ function openMemberEditor(member) {
   const status = document.createElement('select'); status.name = 'membership_status'; ['pending', 'approved', 'declined'].forEach((value) => { const option = new Option(value[0].toUpperCase() + value.slice(1), value, false, member.membership_status === value); status.append(option); });
   statusLabel.append(status); form.append(statusLabel);
   let portraitInput = null;
-  if (member.source === 'Online application') {
-    if (member.portrait_path) {
-      supabase.storage.from('member-portraits').createSignedUrl(member.portrait_path, 300).then(({ data }) => {
-        if (!data?.signedUrl) return;
-        const image = document.createElement('img'); image.src = data.signedUrl; image.alt = `${member.full_name || 'Member'}'s current portrait`; image.className = 'h-28 w-28 rounded-full object-cover border-4 border-white shadow-md';
-        form.insertBefore(image, feedback);
-      });
-    }
-    const portraitLabel = document.createElement('label'); portraitLabel.className = 'field-label'; portraitLabel.textContent = member.portrait_path ? 'Replace portrait photo (optional)' : 'Add portrait photo (optional)';
-    portraitInput = document.createElement('input'); portraitInput.type = 'file'; portraitInput.name = 'portrait'; portraitInput.accept = 'image/jpeg,image/png,image/webp';
-    portraitLabel.append(portraitInput); form.append(portraitLabel);
+  if (member.portrait_path) {
+    supabase.storage.from('member-portraits').createSignedUrl(member.portrait_path, 300).then(({ data }) => {
+      if (!data?.signedUrl) return;
+      const image = document.createElement('img'); image.src = data.signedUrl; image.alt = `${member.full_name || 'Member'}'s current portrait`; image.className = 'h-28 w-28 rounded-full object-cover border-4 border-white shadow-md';
+      form.insertBefore(image, feedback);
+    });
   }
+  const portraitLabel = document.createElement('label'); portraitLabel.className = 'field-label'; portraitLabel.textContent = member.portrait_path ? 'Replace portrait photo (optional)' : 'Add portrait photo (optional)';
+  portraitInput = document.createElement('input'); portraitInput.type = 'file'; portraitInput.name = 'portrait'; portraitInput.accept = 'image/jpeg,image/png,image/webp';
+  portraitLabel.append(portraitInput); form.append(portraitLabel);
   const feedback = document.createElement('p'); feedback.className = 'form-feedback'; feedback.dataset.formFeedback = ''; form.append(feedback);
   const save = document.createElement('button'); save.textContent = 'Save changes'; save.type = 'submit'; form.append(save);
   const close = () => backdrop.remove(); panel.querySelector('button').onclick = close;
