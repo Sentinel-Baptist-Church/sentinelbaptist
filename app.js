@@ -613,7 +613,7 @@ async function renderEnhancedMemberRegister() {
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const counts = ['pending', 'approved', 'declined'].map((status) => `${records.filter((record) => record.membership_status === status).length} ${status}`);
   byId('member-summary').innerHTML = `<span class="summary-pill">${records.length} total records</span>${counts.map((count) => `<span class="summary-pill">${count}</span>`).join('')}`;
-  const render = () => {
+  const render = async () => {
     const filter = byId('member-filter').value;
     const query = byId('member-search').value.trim().toLowerCase();
     const visible = records.filter((member) => {
@@ -624,8 +624,19 @@ async function renderEnhancedMemberRegister() {
     const list = byId('member-list'); list.replaceChildren();
     if (!visible.length) { list.innerHTML = '<p class="empty-state">No members match those filters.</p>'; return; }
     for (const member of visible) {
-      const card = document.createElement('article'); card.className = 'member-card';
-      const details = document.createElement('div');
+      const card = document.createElement('article'); card.className = 'admin-member-card';
+      const portrait = document.createElement('div'); portrait.className = 'admin-member-photo';
+      const initial = (member.full_name || '?').trim().slice(0, 1).toUpperCase();
+      portrait.textContent = initial;
+      if (member.portrait_path) {
+        const { data: signed } = await supabase.storage.from('member-portraits').createSignedUrl(member.portrait_path, 300);
+        if (signed?.signedUrl) {
+          const image = document.createElement('img'); image.src = signed.signedUrl;
+          image.alt = `${member.full_name || 'Member'} portrait`;
+          portrait.replaceChildren(image);
+        }
+      }
+      const details = document.createElement('div'); details.className = 'admin-member-info';
       const title = document.createElement('h4'); title.textContent = member.full_name || 'Unnamed member';
       const badges = document.createElement('p'); badges.className = 'mt-2 flex gap-2 flex-wrap';
       badges.innerHTML = `<span class="status-pill ${member.membership_status}">${member.membership_status}</span><span class="source-pill">${member.source}</span>`;
@@ -639,7 +650,7 @@ async function renderEnhancedMemberRegister() {
         const decline = document.createElement('button'); decline.textContent = 'Decline'; decline.className = 'secondary'; decline.onclick = () => approveMember(member.id, 'declined');
         actions.append(approve, decline);
       }
-      card.append(details, actions); list.append(card);
+      card.append(portrait, details, actions); list.append(card);
     }
   };
   byId('member-filter').addEventListener('change', render);
