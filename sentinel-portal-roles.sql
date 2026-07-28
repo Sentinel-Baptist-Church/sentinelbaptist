@@ -78,3 +78,33 @@ end;
 $$;
 revoke all on function public.get_approved_member_directory() from public;
 grant execute on function public.get_approved_member_directory() to authenticated;
+
+-- Private member portraits. They are never returned by the member directory.
+alter table public.profiles add column if not exists portrait_path text;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('member-portraits', 'member-portraits', false, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do nothing;
+
+create policy "Members read own private portrait" on storage.objects for select to authenticated
+using (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin()));
+create policy "Members upload own private portrait" on storage.objects for insert to authenticated
+with check (bucket_id = 'member-portraits' and owner_id = auth.uid());
+create policy "Members replace own private portrait" on storage.objects for update to authenticated
+using (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin()))
+with check (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin()));
+create policy "Members remove own private portrait" on storage.objects for delete to authenticated
+using (bucket_id = 'member-portraits' and (owner_id = auth.uid() or public.is_admin()));
+
+create or replace function public.set_my_portrait(new_path text)
+returns void language plpgsql security definer set search_path = public
+as $$
+begin
+  if new_path !~ ('^' || auth.uid()::text || '/') then
+    raise exception 'Portrait path is not valid for this account';
+  end if;
+  update public.profiles set portrait_path = new_path where id = auth.uid();
+end;
+$$;
+revoke all on function public.set_my_portrait(text) from public;
+grant execute on function public.set_my_portrait(text) to authenticated;
