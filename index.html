@@ -46,6 +46,11 @@
         overflow-x: hidden;
     }
 
+    .hero-section{min-height:100svh;padding:5.5rem 1.5rem 2rem;background-repeat:no-repeat;background-color:#15100d}.hero-title{font-size:clamp(2.5rem,8vw,5rem);line-height:1.08;text-wrap:balance}.hero-copy{font-size:clamp(1rem,2.5vw,1.5rem)}
+    @media (max-width:767px) and (orientation:portrait){.hero-section{background-size:contain;background-position:center center;min-height:100svh}.hero-section .hero-overlay{background:linear-gradient(180deg,rgba(0,0,0,.64),rgba(0,0,0,.32) 48%,rgba(0,0,0,.7))}.hero-content{padding-top:9rem;padding-bottom:2rem}}
+    @media (max-height:560px) and (orientation:landscape){.hero-section{min-height:100svh;padding-top:4.5rem;padding-bottom:1rem}.hero-title{font-size:clamp(2rem,6vw,3.4rem);margin-bottom:.7rem}.hero-copy{font-size:1rem;margin-bottom:1rem}.hero-cta{padding:.7rem 1.35rem;font-size:.95rem}}
+    #ministries .grid>div:nth-child(1){order:4}#ministries .grid>div:nth-child(2){order:2}#ministries .grid>div:nth-child(3){order:3}#ministries .grid>div:nth-child(4){order:5}#ministries .grid>div:nth-child(5){order:1}#ministries .grid>div:nth-child(6){order:6}
+
     img, iframe { max-width: 100%; }
     .site-header-inner { min-height: 5.5rem; }
     .mobile-nav-link { display: block; padding: 0.75rem 1rem; border-radius: 0.75rem; color: #1f2937; }
@@ -254,23 +259,23 @@
 
     <!-- Hero Section -->
     <section id="home"
-        class="h-screen bg-cover bg-center flex items-center justify-center relative"
+        class="hero-section bg-cover bg-center flex items-center justify-center relative"
         style="background-image: url('images/hero.jpg');">
 
-        <div class="absolute inset-0 bg-black/60"></div>
+        <div class="hero-overlay absolute inset-0 bg-black/60"></div>
 
-        <div class="relative z-10 text-center px-6 text-white max-w-4xl">
-            <h2 class="text-5xl md:text-7xl font-extrabold leading-tight mb-6">
-               Welcome To Sentinel Baptist Church
+        <div class="hero-content relative z-10 text-center px-6 text-white max-w-4xl">
+            <h2 class="hero-title font-extrabold mb-6">
+               WELCOME TO SENTINEL BAPTIST CHURCH
             </h2>
 
-            <p class="text-lg md:text-2xl mb-8 text-gray-200">
+            <p class="hero-copy mb-8 text-gray-200">
               A church devoted to the faithful preaching of Christ,
         the teaching of Scripture, and the proclamation of the Gospel.
             </p>
 
             <a href="#about"
-                class="bg-primary bg-primary-hover transition px-8 py-4 rounded-full text-lg font-semibold inline-block">
+                class="hero-cta bg-primary bg-primary-hover transition px-8 py-4 rounded-full text-lg font-semibold inline-block">
                 Learn More
             </a>
         </div>
@@ -368,7 +373,7 @@
 
             <!-- Card -->
             <div class="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition p-8 text-center">
-                <h3 class="text-2xl font-bold mb-4">Couple’s Ministry</h3>
+                <h3 class="text-2xl font-bold mb-4">Couples' Ministry</h3>
                 <p class="text-gray-600 leading-relaxed">
                     Marriage focused ministry to edify families in the Church.
                 </p>
@@ -615,12 +620,12 @@ Mr. Jide Owolabi is a member of the pastoral staff at the Met Tab. He serves as 
                 <img
                     src="images/Ben.jpeg"
                     alt="Pastor"
-                    class="rounded-3xl shadow-2xl w-full">
+                    class="rounded-3xl shadow-2xl w-1/2 mx-auto md:mx-0">
             </div>
 
             <div>
-                <h2 class="text-4xl md:text-5xl font-bold text-primary mb-8">
-                    Pastor - Ben M. Sangende
+                <h2 class="text-4xl md:text-5xl font-bold mb-8">
+                    <span class="text-gray-700">Pastor:</span> <span class="text-2xl md:text-3xl text-primary">Ben M. Sangende</span>
                 </h2>
 
                <p class="text-lg text-gray-600 leading-relaxed mb-6">
