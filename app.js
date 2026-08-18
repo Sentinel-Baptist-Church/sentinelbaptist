@@ -112,8 +112,17 @@ const friendlyAuthMessage = (error) => {
   if (/invalid login credentials/i.test(text)) return 'We could not match that email and password. Please check them and try again.';
   if (/email not confirmed/i.test(text)) return 'Please confirm your email first, then return here to sign in.';
   if (/already registered/i.test(text)) return 'An account already exists for that email. Please sign in instead.';
-  if (/password should be at least/i.test(text)) return 'Please choose a password with at least 8 characters.';
+  if (/password should be at least/i.test(text)) return 'Please choose a password with at least 12 characters.';
   return text;
+};
+
+const strongPasswordMessage = (password) => {
+  if (typeof password !== 'string' || password.length < 12) return 'Use at least 12 characters.';
+  if (!/[a-z]/.test(password)) return 'Include at least one lowercase letter.';
+  if (!/[A-Z]/.test(password)) return 'Include at least one uppercase letter.';
+  if (!/\d/.test(password)) return 'Include at least one number.';
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Include at least one symbol, such as ! or #.';
+  return '';
 };
 
 const formFeedback = (form, text, type = 'success') => {
@@ -304,6 +313,11 @@ async function register(event) {
   const values = Object.fromEntries(
     Array.from(new FormData(form), ([key, value]) => [key, value === '' ? null : value])
   );
+  const passwordMessage = strongPasswordMessage(values.password);
+  if (passwordMessage) {
+    setFormLoading(form, false);
+    return formFeedback(form, `Choose a stronger password. ${passwordMessage}`, 'error');
+  }
   const { password, consent, ...metadata } = values;
   const ministryInterests = Array.from(form.querySelectorAll('input[name="ministry_interests"]:checked')).map((input) => input.value);
   const { error } = await supabase.auth.signUp({
@@ -351,6 +365,8 @@ async function updatePassword(event) {
   const form = event.currentTarget;
   const values = Object.fromEntries(new FormData(form));
   if (values.password !== values.confirm_password) return formFeedback(form, 'The two passwords do not match. Please try again.', 'error');
+  const passwordMessage = strongPasswordMessage(values.password);
+  if (passwordMessage) return formFeedback(form, `Choose a stronger password. ${passwordMessage}`, 'error');
   formFeedback(form, '');
   setFormLoading(form, true, 'Saving new password…');
   const { error } = await supabase.auth.updateUser({ password: values.password });
@@ -888,7 +904,7 @@ function renderPublicPortal() {
           <section class="form-section"><h3>Church background</h3><div class="form-grid"><label class="field-label">Have you been baptized by immersion after professing faith?<select name="baptized" required><option value="">Select one</option><option value="true">Yes</option><option value="false">No</option></select></label><input name="baptism_date" type="date"><input name="baptism_church" placeholder="e.g. Grace Baptist Church, Lusaka"><label class="field-label">Have you previously been a church member?<select name="previous_membership" required><option value="">Select one</option><option value="true">Yes</option><option value="false">No</option></select></label><input name="previous_church" placeholder="Name of your previous church, if applicable"><textarea name="previous_membership_reason" placeholder="Briefly explain your move, relocation, or reason for leaving."></textarea></div></section>
           <section class="form-section"><h3>Your testimony</h3><p class="section-help">These questions guide a pastoral conversation; only God knows the heart.</p><textarea name="salvation_story" placeholder="Tell us briefly about when and how you came to faith in Christ." required></textarea><textarea name="gospel_understanding" placeholder="Summarise the good news of Jesus Christ in your own words." required></textarea><textarea name="repentance_and_faith" placeholder="Describe what turning from sin and trusting Christ means to you." required></textarea><textarea name="assurance_of_salvation" placeholder="Share what gives you confidence in your salvation." required></textarea></section>
           <section class="form-section"><h3>Ministry and emergency contact</h3><fieldset><legend>Ministry interests</legend><label class="check"><input name="ministry_interests" type="checkbox" value="Children"> Children</label><label class="check"><input name="ministry_interests" type="checkbox" value="Youth"> Youth</label><label class="check"><input name="ministry_interests" type="checkbox" value="Music"> Music</label><label class="check"><input name="ministry_interests" type="checkbox" value="Evangelism"> Evangelism</label><label class="check"><input name="ministry_interests" type="checkbox" value="Hospitality"> Hospitality</label><label class="check"><input name="ministry_interests" type="checkbox" value="Media"> Media</label></fieldset><div class="form-grid"><input name="emergency_contact_name" placeholder="e.g. Ruth Mwansa" required><input name="emergency_contact_phone" placeholder="e.g. +260 96 765 4321" required></div></section>
-          <section class="form-section final-section"><h3>Create your sign-in</h3><label class="field-label">Password<input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters; use a memorable, secure password" required></label><label class="check"><input name="consent" type="checkbox" required> I consent to Sentinel Baptist Church securely using this information for membership and pastoral care.</label><button class="auth-submit">Submit membership application</button></section>
+          <section class="form-section final-section"><h3>Create your sign-in</h3><label class="field-label">Password<input name="password" type="password" minlength="12" autocomplete="new-password" placeholder="12+ characters with upper, lower, number, and symbol" required></label><p class="section-help">Use at least 12 characters, including an uppercase letter, lowercase letter, number, and symbol.</p><label class="check"><input name="consent" type="checkbox" required> I consent to Sentinel Baptist Church securely using this information for membership and pastoral care.</label><button class="auth-submit">Submit membership application</button></section>
         </form>
       </div>
     </section>`);
@@ -941,7 +957,7 @@ async function renderPortal() {
   if (!byId('portal-content')) return;
   const { data: { user } } = await supabase.auth.getUser();
   if (passwordRecoveryMode) {
-    portalShell('Choose a new password', `<section class="card auth-card"><p class="eyebrow">Password recovery</p><h2>Set a new password</h2><p class="text-slate-600">Choose a secure password with at least 8 characters.</p><form id="update-password-form"><label class="field-label">New password<input name="password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required></label><label class="field-label">Confirm new password<input name="confirm_password" type="password" autocomplete="new-password" minlength="8" placeholder="Enter it again" required></label><button class="auth-submit">Save new password</button></form></section>`);
+    portalShell('Choose a new password', `<section class="card auth-card"><p class="eyebrow">Password recovery</p><h2>Set a new password</h2><p class="text-slate-600">Use at least 12 characters, including uppercase, lowercase, a number, and a symbol.</p><form id="update-password-form"><label class="field-label">New password<input name="password" type="password" autocomplete="new-password" minlength="12" placeholder="12+ characters with upper, lower, number, and symbol" required></label><label class="field-label">Confirm new password<input name="confirm_password" type="password" autocomplete="new-password" minlength="12" placeholder="Enter it again" required></label><button class="auth-submit">Save new password</button></form></section>`);
     byId('update-password-form').addEventListener('submit', updatePassword);
     addPasswordVisibilityToggles(byId('update-password-form'));
     return;
