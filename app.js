@@ -8,10 +8,95 @@ const supabase = createClient(
 let passwordRecoveryMode = window.location.hash.includes('type=recovery')
   || new URLSearchParams(window.location.search).get('type') === 'recovery';
 
+// Each browser/device tracks its own inactivity. A signed-in portal session ends
+// after 30 minutes with a five-minute warning, protecting shared devices too.
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+const SESSION_WARNING_MS = 5 * 60 * 1000;
+let sessionUserId = null;
+let sessionWarningTimer = null;
+let sessionSignOutTimer = null;
+let sessionWarningDialog = null;
+let sessionActivityEventsBound = false;
+
+const sessionActivityKey = (userId) => `sentinel-portal-last-activity-${userId}`;
+const clearSessionTimers = () => {
+  window.clearTimeout(sessionWarningTimer);
+  window.clearTimeout(sessionSignOutTimer);
+  sessionWarningTimer = null;
+  sessionSignOutTimer = null;
+};
+
+const removeSessionWarning = () => {
+  sessionWarningDialog?.remove();
+  sessionWarningDialog = null;
+};
+
+const stopSessionInactivityTimer = () => {
+  clearSessionTimers();
+  removeSessionWarning();
+  sessionUserId = null;
+};
+
+async function signOutForInactivity() {
+  const userId = sessionUserId;
+  stopSessionInactivityTimer();
+  if (userId) localStorage.removeItem(sessionActivityKey(userId));
+  await supabase.auth.signOut();
+  if (byId('portal-content')) {
+    await renderPortal();
+    message('You were signed out after 30 minutes of inactivity. Please sign in again.', 'success');
+  }
+}
+
+const showSessionWarning = () => {
+  if (!sessionUserId || sessionWarningDialog) return;
+  const dialog = document.createElement('div');
+  dialog.className = 'session-warning-backdrop';
+  dialog.innerHTML = '<section class="session-warning-card" role="dialog" aria-modal="true" aria-labelledby="session-warning-title"><p class="eyebrow">Session ending soon</p><h2 id="session-warning-title">Still with us?</h2><p>For your privacy, you will be signed out in 5 minutes because there has been no activity.</p><div class="session-warning-actions"><button type="button" id="stay-signed-in">Stay signed in</button><button type="button" class="outline" id="sign-out-now">Sign out now</button></div></section>';
+  document.body.append(dialog);
+  sessionWarningDialog = dialog;
+  dialog.querySelector('#stay-signed-in').addEventListener('click', () => recordSessionActivity());
+  dialog.querySelector('#sign-out-now').addEventListener('click', signOutForInactivity);
+  dialog.querySelector('#stay-signed-in').focus();
+};
+
+const scheduleSessionInactivity = () => {
+  if (!sessionUserId) return;
+  clearSessionTimers();
+  const lastActivity = Number(localStorage.getItem(sessionActivityKey(sessionUserId))) || Date.now();
+  const elapsed = Date.now() - lastActivity;
+  if (elapsed >= SESSION_IDLE_MS) { signOutForInactivity(); return; }
+  const warningDelay = Math.max(0, SESSION_IDLE_MS - SESSION_WARNING_MS - elapsed);
+  const signOutDelay = Math.max(0, SESSION_IDLE_MS - elapsed);
+  sessionWarningTimer = window.setTimeout(showSessionWarning, warningDelay);
+  sessionSignOutTimer = window.setTimeout(signOutForInactivity, signOutDelay);
+};
+
+function recordSessionActivity() {
+  if (!sessionUserId) return;
+  localStorage.setItem(sessionActivityKey(sessionUserId), String(Date.now()));
+  removeSessionWarning();
+  scheduleSessionInactivity();
+}
+
+const startSessionInactivityTimer = (userId) => {
+  sessionUserId = userId;
+  const key = sessionActivityKey(userId);
+  if (!localStorage.getItem(key)) localStorage.setItem(key, String(Date.now()));
+  if (!sessionActivityEventsBound) {
+    ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach((eventName) => document.addEventListener(eventName, recordSessionActivity, { passive: true }));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleSessionInactivity(); });
+    sessionActivityEventsBound = true;
+  }
+  scheduleSessionInactivity();
+};
+
 supabase.auth.onAuthStateChange((event) => {
-  if (event !== 'PASSWORD_RECOVERY') return;
-  passwordRecoveryMode = true;
-  if (document.getElementById('portal-content')) renderPortal();
+  if (event === 'PASSWORD_RECOVERY') {
+    passwordRecoveryMode = true;
+    if (document.getElementById('portal-content')) renderPortal();
+  }
+  if (event === 'SIGNED_OUT') stopSessionInactivityTimer();
 });
 
 const byId = (id) => document.getElementById(id);
@@ -862,6 +947,7 @@ async function renderPortal() {
     return;
   }
   if (!user) {
+    stopSessionInactivityTimer();
     renderPublicPortal();
     return;
     portalShell('Member portal', `<p class="text-slate-600 mb-6">Register to apply for membership, or sign in to check your application.</p>
@@ -878,8 +964,9 @@ async function renderPortal() {
   if (error) return message('Your profile is still being prepared. Please refresh shortly.', 'error');
   const isAdmin = profile.role === 'admin';
   const isApprovedMember = profile.role === 'member' && profile.membership_status === 'approved';
+  startSessionInactivityTimer(user.id);
   portalShell(`Welcome, ${profile.full_name || user.email}`, `<p class="text-slate-600 mb-4">Membership status: <strong class="capitalize">${profile.membership_status}</strong></p><button id="sign-out" class="secondary">Sign out</button><div id="staff-area" class="mt-8"></div>`);
-  byId('sign-out').addEventListener('click', async () => { await supabase.auth.signOut(); await renderPortal(); });
+  byId('sign-out').addEventListener('click', async () => { stopSessionInactivityTimer(); await supabase.auth.signOut(); await renderPortal(); });
   if (isAdmin) { await renderStaffDashboard(profile.role); return; }
   if (isApprovedMember) { await renderApprovedMemberDirectory(profile); return; }
   return;
