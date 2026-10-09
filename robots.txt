@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /sentinelbaptist/portal.html
+
+Sitemap: https://sentinel-baptist-church.github.io/sentinelbaptist/sitemap.xml
